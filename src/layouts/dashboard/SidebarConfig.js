@@ -7,6 +7,9 @@ import lockFill from '@iconify/icons-eva/lock-fill';
 import personAddFill from '@iconify/icons-eva/person-add-fill';
 import alertTriangleFill from '@iconify/icons-eva/alert-triangle-fill';
 
+import messageCircleFill from '@iconify/icons-eva/message-circle-fill';
+import pipeline20Filled from '@iconify/icons-fluent/pipeline-20-filled';
+
 // ----------------------------------------------------------------------
 
 const getIcon = (name) => <Icon icon={name} width={22} height={22} />;
@@ -31,6 +34,16 @@ const sidebarConfig = [
     title: 'blog',
     path: '/dashboard/blog',
     icon: getIcon(fileTextFill)
+  },
+  {
+    title: 'chatbot',
+    path: '/dashboard/chatbot',
+    icon: getIcon(messageCircleFill)
+  },
+  {
+    title: 'pipeline',
+    path: '/dashboard/pipeline',
+    icon: getIcon(pipeline20Filled)
   },
   {
     title: 'login',

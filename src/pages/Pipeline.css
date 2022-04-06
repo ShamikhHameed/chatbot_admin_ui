@@ -1,0 +1,12 @@
+.PipelineComponent {
+    width: 60vw;
+    padding: 20px 30px 20px 30px;
+    margin: 5px 0px 5px 0px;
+    border-radius: 25px;
+    border: 2px solid #3366FF;
+}
+
+.TokenizerDropDowns {
+    width: 180px;
+    margin-right: 30px;
+}
