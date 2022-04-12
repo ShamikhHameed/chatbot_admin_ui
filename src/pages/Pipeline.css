@@ -7,6 +7,21 @@
 }
 
 .TokenizerDropDowns {
-    width: 180px;
+    width: 260px;
     margin-right: 30px;
+    margin-bottom: 15px;
+}
+
+.lexicalSyntacticFeaturizerFormGroup {
+    height: 100px;
+    width: 55vw;
+    margin-top: 15px;
+    margin-left: 10px;
+}
+
+.spacyEntityExtractorFormGroup {
+    height: 50px;
+    width: 45vw;
+    margin-top: 15px;
+    margin-left: 10px;
 }
