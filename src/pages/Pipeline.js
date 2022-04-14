@@ -44,6 +44,7 @@ import './Pipeline.css'
 
 export default function DashboardApp() {
   // used to check whether to display a component or not
+  const [languageModelValue, setLanguageModelValue] = React.useState("MitieNLP");
   const [tokenizerValue, setTokenizerValue] = React.useState("WhitespaceTokenizer");
   const [featurizerValues, setFeaturizerValues] = React.useState({
     mitieF: true,
@@ -91,6 +92,27 @@ export default function DashboardApp() {
 
   const fallbackClassifierMinThreshold = 0.1;
   const fallbackClassifierMaxThreshold = 1.0;
+
+  const CRFEntityExtractorMinMaxIterations = 1;
+  const CRFEntityExtractorMinL1 = 0.0;
+  const CRFEntityExtractorMaxL1 = 1.0;
+  const CRFEntityExtractorMinL2 = 0.0;
+  const CRFEntityExtractorMaxL2 = 1.0;
+
+  const DucklingEntityExtractorURL = "http://localhost:";
+
+  const ducklingEntityExtractorMinPortNo = 1024;
+  const ducklingEntityExtractorMaxPortNo = 65535;
+
+  const ducklingEntityExtractorMinTimeout = 1;
+
+  // LANGUAGE MODELS - State
+  // select options state for MitieNLP
+  const [mitieNLPModelPath, setMitieNLPModelPath] = React.useState("");
+
+  // select options state for MitieNLP
+  const [spacyNLPModelLang, setSpacyNLPModelLang] = React.useState("en_core_web_sm");
+  const [spacyNLPCaseSensitive, setSpacyNLPCaseSensitive] = React.useState(false);
 
   // TOKENIZERS - State
   // select options state for WhitespaceTokenizer
@@ -239,8 +261,101 @@ export default function DashboardApp() {
     product: false
   });
 
+  // select options state for CRFEntityExtractor
+  const [CRFEntityExtractorFlag, setCRFEntityExtractorFlag] = React.useState(true);
+  
+  const [CRFEntityExtractorBefore, setCRFEntityExtractorBefore] = React.useState({
+    CRFEntityExtractorBeforeLow: true,
+    CRFEntityExtractorBeforeUpper: true,
+    CRFEntityExtractorBeforeTitle: true,
+    CRFEntityExtractorBeforeDigit: false,
+    CRFEntityExtractorBeforePrefix5: false,
+    CRFEntityExtractorBeforePrefix2: false,
+    CRFEntityExtractorBeforeSuffix5: false,
+    CRFEntityExtractorBeforeSuffix3: false,
+    CRFEntityExtractorBeforeSuffix2: false,
+    CRFEntityExtractorBeforeSuffix1: false,
+    // using below 2 requires SpacyTokenizer
+    CRFEntityExtractorBeforePos: false,
+    CRFEntityExtractorBeforePos2: false,
+    // using below feature requires RegexFeaturizer
+    CRFEntityExtractorBeforePattern: false,
+    // using below feature requires LanguageModelFeaturizer
+    CRFEntityExtractorBeforeBias: false,
+    CRFEntityExtractorBeforeTextDenseFeatures: false,
+  });
+
+  const [CRFEntityExtractorToken, setCRFEntityExtractorToken] = React.useState({
+    CRFEntityExtractorTokenLow: true,
+    CRFEntityExtractorTokenUpper: true,
+    CRFEntityExtractorTokenTitle: true,
+    CRFEntityExtractorTokenDigit: false,
+    CRFEntityExtractorTokenPrefix5: false,
+    CRFEntityExtractorTokenPrefix2: false,
+    CRFEntityExtractorTokenSuffix5: false,
+    CRFEntityExtractorTokenSuffix3: false,
+    CRFEntityExtractorTokenSuffix2: false,
+    CRFEntityExtractorTokenSuffix1: false,
+    // using below 2 requires SpacyTokenizer
+    CRFEntityExtractorTokenPos: false,
+    CRFEntityExtractorTokenPos2: false,
+    // using below feature requires RegexFeaturizer
+    CRFEntityExtractorTokenPattern: false,
+    // using below feature requires LanguageModelFeaturizer
+    CRFEntityExtractorTokenBias: false,
+    CRFEntityExtractorTokenTextDenseFeatures: false,
+  });
+
+  const [CRFEntityExtractorAfter, setCRFEntityExtractorAfter] = React.useState({
+    CRFEntityExtractorAfterLow: true,
+    CRFEntityExtractorAfterUpper: true,
+    CRFEntityExtractorAfterTitle: true,
+    CRFEntityExtractorAfterDigit: false,
+    CRFEntityExtractorAfterPrefix5: false,
+    CRFEntityExtractorAfterPrefix2: false,
+    CRFEntityExtractorAfterSuffix5: false,
+    CRFEntityExtractorAfterSuffix3: false,
+    CRFEntityExtractorAfterSuffix2: false,
+    CRFEntityExtractorAfterSuffix1: false,
+    // using below 2 requires SpacyTokenizer
+    CRFEntityExtractorAfterPos: false,
+    CRFEntityExtractorAfterPos2: false,
+    // using below feature requires RegexFeaturizer
+    CRFEntityExtractorAfterPattern: false,
+    // using below feature requires LanguageModelFeaturizer
+    CRFEntityExtractorAfterBias: false,
+    CRFEntityExtractorAfterTextDenseFeatures: false,
+  });
+
+  const [CRFEntityExtractorMaxIterations, setCRFEntityExtractorMaxIterations] = React.useState(50);
+  const [CRFEntityExtractorL1, setCRFEntityExtractorL1] = React.useState(0.1);
+  const [CRFEntityExtractorL2, setCRFEntityExtractorL2] = React.useState(0.1);
+  const [CRFEntityExtractorSplitAddress, setCRFEntityExtractorSplitAddress] = React.useState(false);
+  const [CRFEntityExtractorSplitEmail, setCRFEntityExtractorSplitEmail] = React.useState(true);
+
+  // select options state for DucklingEntityExtractor
+  const [ducklingEntityExtractorPortNo, setDucklingEntityExtractorPortNo] = React.useState(8080);
+
+  const [ducklingEntityExtractorDimensions, setDucklingEntityExtractorDimensions] = React.useState({
+    ducklingEntityExtractorTime: true,
+    ducklingEntityExtractorNumber: true,
+    ducklingEntityExtractorMoney: true,
+    ducklingEntityExtractorDistance: true
+  });
+
+  const [ducklingEntityExtractorTimeout, setDucklingEntityExtractorTimeout] = React.useState(3);
+
+  // select options state for RegexEntityExtractor
+  const [regexEntityExtractorCaseSensitive, setRegexEntityExtractorCaseSensitive] = React.useState(false);
+  const [regexEntityExtractorLookupTables, setRegexEntityExtractorLookupTables] = React.useState(true);
+  const [regexEntityExtractorRegexes, setRegexEntityExtractorRegexes] = React.useState(true);
+  const [regexEntityExtractorWordBoundaries, setRegexEntityExtractorWordBoundaries] = React.useState(true);
 
   // used to handle change on whether to display a component or not
+  const handleLanguageModelChange = (event) => {
+    setLanguageModelValue(event.target.value);
+  };
+
   const handleTokenizerChange = (event) => {
     setTokenizerValue(event.target.value);
   };
@@ -265,6 +380,21 @@ export default function DashboardApp() {
       [event.target.name]: event.target.checked,
     });
   };
+
+  // LANGUAGE MODEL - handleChange
+  // handle chnage for MitieNLPModel
+  const handleMitieNLPModelPathChange = (event) => {
+    setMitieNLPModelPath(event.target.value);
+  }
+
+  // handle chnage for MitieNLPModel
+  const handleSpacyNLPModelLangChange = (event) => {
+    setSpacyNLPModelLang(event.target.value);
+  }
+
+  const handleSpacyNLPCaseSensitiveChange = (event) => {
+    setSpacyNLPCaseSensitive(event.target.value);
+  }
 
   // TOKENIZERS - handleChange
   // handle chnage for WhitespaceTokenizers
@@ -581,6 +711,109 @@ export default function DashboardApp() {
     });
   };
 
+  // handle chnage for CRFEntityExtractor
+  const handleCRFEntityExtractorFlagChange = (event) => {
+    setCRFEntityExtractorFlag(event.target.value);
+  }
+
+  const handleCRFEntityExtractorBeforeChange = (event) => {
+    setCRFEntityExtractorBefore({
+      ...CRFEntityExtractorBefore,
+      [event.target.name]: event.target.checked,
+    });
+  };
+
+  const handleCRFEntityExtractorTokenChange = (event) => {
+    setCRFEntityExtractorToken({
+      ...CRFEntityExtractorToken,
+      [event.target.name]: event.target.checked,
+    });
+  };
+
+  const handleCRFEntityExtractorAfterChange = (event) => {
+    setCRFEntityExtractorAfter({
+      ...CRFEntityExtractorAfter,
+      [event.target.name]: event.target.checked,
+    });
+  };
+
+  const handleCRFEntityExtractorMaxIterationsChange = (event) => {
+    let value = parseInt(event.target.value, 10);
+
+    if (value < CRFEntityExtractorMinMaxIterations) value = CRFEntityExtractorMinMaxIterations;
+
+    setCRFEntityExtractorMaxIterations(value);
+  }
+
+  const handleCRFEntityExtractorL1Change = (event) => {
+    let value = parseFloat(event.target.value);
+
+    if (value > CRFEntityExtractorMaxL1) value = CRFEntityExtractorMaxL1;
+    if (value < CRFEntityExtractorMinL1) value = CRFEntityExtractorMinL1;
+
+    setCRFEntityExtractorL1(value);
+  }
+
+  const handleCRFEntityExtractorL2Change = (event) => {
+    let value = parseFloat(event.target.value);
+
+    if (value > CRFEntityExtractorMaxL2) value = CRFEntityExtractorMaxL2;
+    if (value < CRFEntityExtractorMinL2) value = CRFEntityExtractorMinL2;
+
+    setCRFEntityExtractorL2(value);
+  }
+
+  const handleCRFEntityExtractorSplitAddressChange = (event) => {
+    setCRFEntityExtractorSplitAddress(event.target.value);
+  }
+
+  const handleCRFEntityExtractorSplitEmailChange = (event) => {
+    setCRFEntityExtractorSplitEmail(event.target.value);
+  }
+
+  // handle chnage for DucklingEntityExtractor
+  const handleDucklingEntityExtractorPortNoChange = (event) => {
+    let value = parseInt(event.target.value, 10);
+
+    if (value > ducklingEntityExtractorMaxPortNo) value = ducklingEntityExtractorMaxPortNo;
+    if (value < ducklingEntityExtractorMinPortNo) value = ducklingEntityExtractorMinPortNo;
+
+    setDucklingEntityExtractorPortNo(value);
+  }
+
+  const handleDucklingEntityExtractorDimensionsChange = (event) => {
+    setDucklingEntityExtractorDimensions({
+      ...ducklingEntityExtractorDimensions,
+      [event.target.name]: event.target.checked,
+    });
+  };
+
+  const handleDucklingEntityExtractorTimeoutChange = (event) => {
+    let value = parseInt(event.target.value, 10);
+
+    if (value < ducklingEntityExtractorMinTimeout) value = ducklingEntityExtractorMinTimeout;
+
+    setDucklingEntityExtractorTimeout(value);
+  }
+
+  // handle chnage for RegexEntityExtractor
+  const handleRegexEntityExtractorCaseSensitiveChange = (event) => {
+    setRegexEntityExtractorCaseSensitive(event.target.value);
+  }
+
+  const handleRegexEntityExtractorLookupTablesChange = (event) => {
+    setRegexEntityExtractorLookupTables(event.target.value);
+  }
+
+  const handleRegexEntityExtractorRegexesChange = (event) => {
+    setRegexEntityExtractorRegexes(event.target.value);
+  }
+
+  const handleRegexEntityExtractorWordBoundariesChange = (event) => {
+    setRegexEntityExtractorWordBoundaries(event.target.value);
+  }
+
+
   const { mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF } = featurizerValues;
   const featurizerError = [mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF].filter((v) => v).length === 0;
   
@@ -603,6 +836,21 @@ export default function DashboardApp() {
 
   // for SpacyEntityExtractor
   const { person, loc, org, product } = spacyEntityExtractorDimensions;
+
+  // for CRFEntityExtractor
+  const { CRFEntityExtractorBeforeLow, CRFEntityExtractorBeforeUpper, CRFEntityExtractorBeforeTitle, CRFEntityExtractorBeforeDigit, CRFEntityExtractorBeforePrefix5, CRFEntityExtractorBeforePrefix2, CRFEntityExtractorBeforeSuffix5, CRFEntityExtractorBeforeSuffix3, CRFEntityExtractorBeforeSuffix2, CRFEntityExtractorBeforeSuffix1, CRFEntityExtractorBeforePos, CRFEntityExtractorBeforePos2, CRFEntityExtractorBeforePattern, CRFEntityExtractorBeforeBias, CRFEntityExtractorBeforeTextDenseFeatures } = CRFEntityExtractorBefore;
+  const CRFEntityExtractorBeforeValuesError = [CRFEntityExtractorBeforeLow, CRFEntityExtractorBeforeUpper, CRFEntityExtractorBeforeTitle, CRFEntityExtractorBeforeDigit, CRFEntityExtractorBeforePrefix5, CRFEntityExtractorBeforePrefix2, CRFEntityExtractorBeforeSuffix5, CRFEntityExtractorBeforeSuffix3, CRFEntityExtractorBeforeSuffix2, CRFEntityExtractorBeforeSuffix1, CRFEntityExtractorBeforePos, CRFEntityExtractorBeforePos2, CRFEntityExtractorBeforePattern, CRFEntityExtractorBeforeBias, CRFEntityExtractorBeforeTextDenseFeatures].filter((v) => v).length === 0;
+
+  const { CRFEntityExtractorTokenLow, CRFEntityExtractorTokenUpper, CRFEntityExtractorTokenTitle, CRFEntityExtractorTokenDigit, CRFEntityExtractorTokenPrefix5, CRFEntityExtractorTokenPrefix2, CRFEntityExtractorTokenSuffix5, CRFEntityExtractorTokenSuffix3, CRFEntityExtractorTokenSuffix2, CRFEntityExtractorTokenSuffix1, CRFEntityExtractorTokenPos, CRFEntityExtractorTokenPos2, CRFEntityExtractorTokenPattern, CRFEntityExtractorTokenBias, CRFEntityExtractorTokenTextDenseFeatures } = CRFEntityExtractorToken;
+  const CRFEntityExtractorTokenValuesError = [CRFEntityExtractorTokenLow, CRFEntityExtractorTokenUpper, CRFEntityExtractorTokenTitle, CRFEntityExtractorTokenDigit, CRFEntityExtractorTokenPrefix5, CRFEntityExtractorTokenPrefix2, CRFEntityExtractorTokenSuffix5, CRFEntityExtractorTokenSuffix3, CRFEntityExtractorTokenSuffix2, CRFEntityExtractorTokenSuffix1, CRFEntityExtractorTokenPos, CRFEntityExtractorTokenPos2, CRFEntityExtractorTokenPattern, CRFEntityExtractorTokenBias, CRFEntityExtractorTokenTextDenseFeatures].filter((v) => v).length === 0;
+
+  const { CRFEntityExtractorAfterLow, CRFEntityExtractorAfterUpper, CRFEntityExtractorAfterTitle, CRFEntityExtractorAfterDigit, CRFEntityExtractorAfterPrefix5, CRFEntityExtractorAfterPrefix2, CRFEntityExtractorAfterSuffix5, CRFEntityExtractorAfterSuffix3, CRFEntityExtractorAfterSuffix2, CRFEntityExtractorAfterSuffix1, CRFEntityExtractorAfterPos, CRFEntityExtractorAfterPos2, CRFEntityExtractorAfterPattern, CRFEntityExtractorAfterBias, CRFEntityExtractorAfterTextDenseFeatures } = CRFEntityExtractorAfter;
+  const CRFEntityExtractorAfterValuesError = [CRFEntityExtractorAfterLow, CRFEntityExtractorAfterUpper, CRFEntityExtractorAfterTitle, CRFEntityExtractorAfterDigit, CRFEntityExtractorAfterPrefix5, CRFEntityExtractorAfterPrefix2, CRFEntityExtractorAfterSuffix5, CRFEntityExtractorAfterSuffix3, CRFEntityExtractorAfterSuffix2, CRFEntityExtractorAfterSuffix1, CRFEntityExtractorAfterPos, CRFEntityExtractorAfterPos2, CRFEntityExtractorAfterPattern, CRFEntityExtractorAfterBias, CRFEntityExtractorAfterTextDenseFeatures].filter((v) => v).length === 0;
+
+  // for DucklingEntityExtractor
+  const { ducklingEntityExtractorTime, ducklingEntityExtractorNumber, ducklingEntityExtractorMoney, ducklingEntityExtractorDistance } = ducklingEntityExtractorDimensions;
+  const ducklingEntityExtractorDimensionsValuesError = [ducklingEntityExtractorTime, ducklingEntityExtractorNumber, ducklingEntityExtractorMoney, ducklingEntityExtractorDistance].filter((v) => v).length === 0;
+
 
   // arrays for languageModelFeaturizer models
   // const modelName = ["bert", "gpt", "gpt2", "xlnet", "distilbert", "roberta"];
@@ -647,6 +895,20 @@ export default function DashboardApp() {
         </DndProvider> */}
         <div style={{height: "100vh", width: "100vw"}}>
             <div style={{height: "100vh", width: "16vw", float: "left"}}>
+            <FormControl>
+              <FormLabel id="demo-controlled-radio-buttons-group">Tokenizers</FormLabel>
+              <RadioGroup
+                aria-labelledby="demo-controlled-radio-buttons-group"
+                name="controlled-radio-buttons-group"
+                value={languageModelValue}
+                onChange={handleLanguageModelChange}
+              >
+                <FormControlLabel value="MitieNLP" control={<Radio />} label="MitieNLP" />
+                <FormControlLabel value="SpacyNLP" control={<Radio />} label="SpacyNLP" />
+              </RadioGroup>
+            </FormControl>
+            <br/><br/>
+
             <FormControl>
               <FormLabel id="demo-controlled-radio-buttons-group">Tokenizers</FormLabel>
               <RadioGroup
@@ -819,6 +1081,67 @@ export default function DashboardApp() {
             </FormControl>
             </div>
             <div style={{height: "100vh", width: "84vw", float: "right"}}>
+              {languageModelValue === "MitieNLP" && 
+              <div className='PipelineComponent'>
+                MitieNLP
+                <br/><br/>
+
+                <TextField
+                  value={mitieNLPModelPath}
+                  onChange={handleMitieNLPModelPathChange}
+                  variant="outlined"
+                  label="Path to Model"
+                  className="TokenizerDropDowns"
+                />
+              </div>}
+
+              {languageModelValue === "SpacyNLP" && 
+              <div className='PipelineComponent'>
+                SpacyNLP
+                <br/><br/>
+                
+                <TextField
+                  value={spacyNLPModelLang}
+                  onChange={handleSpacyNLPModelLangChange}
+                  select // tell TextField to render select
+                  label="Language"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value="ca_core_news_sm">Catalan</MenuItem>
+                  <MenuItem value="zh_core_web_sm">Chinese</MenuItem>
+                  <MenuItem value="da_core_news_sm">Danish</MenuItem>
+                  <MenuItem value="nl_core_news_sm">Dutch</MenuItem>
+                  <MenuItem value="en_core_web_sm">English</MenuItem>
+                  <MenuItem value="fr_core_news_sm">French</MenuItem>
+                  <MenuItem value="de_core_news_sm">German</MenuItem>
+                  <MenuItem value="el_core_news_sm">Greek</MenuItem>
+                  <MenuItem value="it_core_news_sm">Italian</MenuItem>
+                  <MenuItem value="ja_core_news_sm">Japanese</MenuItem>
+                  <MenuItem value="lt_core_news_sm">Lithuanian</MenuItem>
+                  <MenuItem value="mk_core_news_sm">Macedonian</MenuItem>
+                  <MenuItem value="xx_ent_wiki_sm">Multi-language</MenuItem>
+                  <MenuItem value="nb_core_news_sm">Norwegian Bokmål</MenuItem>
+                  <MenuItem value="pl_core_news_sm">Polish</MenuItem>
+                  <MenuItem value="pt_core_news_sm">Portuguese</MenuItem>
+                  <MenuItem value="ro_core_news_sm">Romanian</MenuItem>
+                  <MenuItem value="ru_core_news_sm">Russia</MenuItem>
+                  <MenuItem value="es_core_news_sm">Spanish</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={spacyNLPCaseSensitive}
+                  onChange={handleSpacyNLPCaseSensitiveChange}
+                  select // tell TextField to render select
+                  label="Case Sensitive"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value={false}>False</MenuItem>
+                  <MenuItem value>True</MenuItem>
+                </TextField>
+              </div>}
+
               {tokenizerValue === "WhitespaceTokenizer" && 
               <div className='PipelineComponent'>
                 WhitespaceTokenizer
@@ -1799,9 +2122,520 @@ export default function DashboardApp() {
                   {/* <FormHelperText>Choose atleast one Before Token Feature</FormHelperText> */}
                 </FormControl>
               </div>}
-              {crfE && <div className='PipelineComponent'>CRFEntityExtractor</div>}
-              {ducklingE && <div className='PipelineComponent'>DucklingEntityExtractor</div>}
-              {regexE && <div className='PipelineComponent'>RegexEntityExtractor</div>}
+              {crfE && 
+              <div className='PipelineComponent'>
+                CRFEntityExtractor
+                <br/><br/>
+                
+                <TextField
+                  value={CRFEntityExtractorFlag}
+                  onChange={handleCRFEntityExtractorFlagChange}
+                  select // tell TextField to render select
+                  label="BILOU Flag"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+
+                <FormControl
+                  required
+                  error={CRFEntityExtractorBeforeValuesError}
+                  component="fieldset"
+                  variant="standard"
+                >
+                  <FormLabel component="legend">Before Features</FormLabel>
+                  <FormGroup
+                    className="lexicalSyntacticFeaturizerFormGroup"
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeLow} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeLow" />
+                      }
+                      label="low"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeUpper} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeUpper" />
+                      }
+                      label="upper"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeTitle} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTitle" />
+                      }
+                      label="title"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeDigit} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeDigit" />
+                      }
+                      label="digit"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforePrefix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix5" />
+                      }
+                      label="prefix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforePrefix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix2" />
+                      }
+                      label="prefix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix5" />
+                      }
+                      label="suffix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix3} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix3" />
+                      }
+                      label="suffix3"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix2" />
+                      }
+                      label="suffix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix1} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix1" />
+                      }
+                      label="suffix1"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforePos} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos" />
+                      }
+                      label="pos"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforePos2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos2" />
+                      }
+                      label="pos2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforePattern} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePattern" />
+                      }
+                      label="pattern"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeBias} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeBias" />
+                      }
+                      label="bias"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorBeforeTextDenseFeatures} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTextDenseFeatures" />
+                      }
+                      label="text_dense_features"
+                    />
+                  </FormGroup>
+                  <FormHelperText>Choose atleast one Before Feature</FormHelperText>
+                </FormControl>
+
+                <br/><br/>
+
+                <FormControl
+                  required
+                  error={CRFEntityExtractorTokenValuesError}
+                  component="fieldset"
+                  variant="standard"
+                >
+                  <FormLabel component="legend">Token Features</FormLabel>
+                  <FormGroup
+                    className="lexicalSyntacticFeaturizerFormGroup"
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenLow} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenLow" />
+                      }
+                      label="low"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenUpper} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenUpper" />
+                      }
+                      label="upper"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenTitle} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTitle" />
+                      }
+                      label="title"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenDigit} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenDigit" />
+                      }
+                      label="digit"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenPrefix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix5" />
+                      }
+                      label="prefix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenPrefix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix2" />
+                      }
+                      label="prefix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix5" />
+                      }
+                      label="suffix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix3} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix3" />
+                      }
+                      label="suffix3"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix2" />
+                      }
+                      label="suffix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix1} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix1" />
+                      }
+                      label="suffix1"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenPos} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos" />
+                      }
+                      label="pos"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenPos2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos2" />
+                      }
+                      label="pos2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenPattern} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPattern" />
+                      }
+                      label="pattern"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenBias} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenBias" />
+                      }
+                      label="bias"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorTokenTextDenseFeatures} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTextDenseFeatures" />
+                      }
+                      label="text_dense_features"
+                    />
+                  </FormGroup>
+                  <FormHelperText>Choose atleast one Token Feature</FormHelperText>
+                </FormControl>
+
+                <br/><br/>
+
+                <FormControl
+                  required
+                  error={CRFEntityExtractorAfterValuesError}
+                  component="fieldset"
+                  variant="standard"
+                >
+                  <FormLabel component="legend">After Features</FormLabel>
+                  <FormGroup
+                    className="lexicalSyntacticFeaturizerFormGroup"
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterLow} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterLow" />
+                      }
+                      label="low"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterUpper} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterUpper" />
+                      }
+                      label="upper"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterTitle} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTitle" />
+                      }
+                      label="title"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterDigit} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterDigit" />
+                      }
+                      label="digit"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterPrefix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix5" />
+                      }
+                      label="prefix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterPrefix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix2" />
+                      }
+                      label="prefix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix5" />
+                      }
+                      label="suffix5"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix3} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix3" />
+                      }
+                      label="suffix3"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix2" />
+                      }
+                      label="suffix2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix1} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix1" />
+                      }
+                      label="suffix1"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterPos} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos" />
+                      }
+                      label="pos"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterPos2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos2" />
+                      }
+                      label="pos2"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterPattern} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPattern" />
+                      }
+                      label="pattern"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterBias} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterBias" />
+                      }
+                      label="bias"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={CRFEntityExtractorAfterTextDenseFeatures} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTextDenseFeatures" />
+                      }
+                      label="text_dense_features"
+                    />
+                  </FormGroup>
+                  <FormHelperText>Choose atleast one After Feature</FormHelperText>
+                </FormControl>
+
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  inputProps={{ CRFEntityExtractorMinMaxIterations }}
+                  value={CRFEntityExtractorMaxIterations}
+                  onChange={handleCRFEntityExtractorMaxIterationsChange}
+                  variant="outlined"
+                  label="Max Iterations"
+                  className="TokenizerDropDowns"
+                />
+
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  inputProps={{ CRFEntityExtractorMinL1, CRFEntityExtractorMaxL1, step:".1" }}
+                  value={CRFEntityExtractorL1}
+                  onChange={handleCRFEntityExtractorL1Change}
+                  variant="outlined"
+                  label="L1 Regularization Weight"
+                  className="TokenizerDropDowns"
+                />
+
+                <TextField
+                  type="number"
+                  inputProps={{ CRFEntityExtractorMinL2, CRFEntityExtractorMaxL2, step:".1" }}
+                  value={CRFEntityExtractorL2}
+                  onChange={handleCRFEntityExtractorL2Change}
+                  variant="outlined"
+                  label="L2 Regularization Weight"
+                  className="TokenizerDropDowns"
+                />
+
+                <br/><br/>
+                
+                <TextField
+                  value={CRFEntityExtractorSplitAddress}
+                  onChange={handleCRFEntityExtractorSplitAddressChange}
+                  select // tell TextField to render select
+                  label="Split Entities by Comma : Address"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value={false}>False</MenuItem>
+                  <MenuItem value>True</MenuItem>
+                </TextField>
+
+                <TextField
+                  value={CRFEntityExtractorSplitEmail}
+                  onChange={handleCRFEntityExtractorSplitEmailChange}
+                  select // tell TextField to render select
+                  label="Split Entities by Comma : Email"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+              </div>}
+              {ducklingE && 
+              <div className='PipelineComponent'>
+                DucklingEntityExtractor
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  inputProps={{ ducklingEntityExtractorMinPortNo, ducklingEntityExtractorMaxPortNo }}
+                  value={ducklingEntityExtractorPortNo}
+                  onChange={handleDucklingEntityExtractorPortNoChange}
+                  variant="outlined"
+                  label="Port Number"
+                  className="TokenizerDropDowns"
+                />
+
+                <br/><br/>
+
+                <FormControl
+                  required
+                  error={ducklingEntityExtractorDimensionsValuesError}
+                  component="fieldset"
+                  variant="standard"
+                >
+                  <FormLabel component="legend">Dimensions</FormLabel>
+                  <FormGroup
+                    className="spacyEntityExtractorFormGroup"
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={ducklingEntityExtractorTime} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorTime" />
+                      }
+                      label="time"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={ducklingEntityExtractorNumber} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorNumber" />
+                      }
+                      label="upper"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={ducklingEntityExtractorMoney} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorMoney" />
+                      }
+                      label="title"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={ducklingEntityExtractorDistance} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorDistance" />
+                      }
+                      label="digit"
+                    />
+                  </FormGroup>
+                  <FormHelperText>Choose atleast one Dimension</FormHelperText>
+                </FormControl>
+
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  inputProps={{ ducklingEntityExtractorMinTimeout }}
+                  value={ducklingEntityExtractorTimeout}
+                  onChange={handleDucklingEntityExtractorTimeoutChange}
+                  variant="outlined"
+                  label="Timeout"
+                  className="TokenizerDropDowns"
+                />
+              </div>}
+              {regexE && 
+              <div className='PipelineComponent'>
+                RegexEntityExtractor
+                <br/><br/>
+                
+                <TextField
+                  value={regexEntityExtractorCaseSensitive}
+                  onChange={handleRegexEntityExtractorCaseSensitiveChange}
+                  select // tell TextField to render select
+                  label="Case Sensitive"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value={false}>False</MenuItem>
+                  <MenuItem value>True</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={regexEntityExtractorLookupTables}
+                  onChange={handleRegexEntityExtractorLookupTablesChange}
+                  select // tell TextField to render select
+                  label="Use Lookup Tables"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={regexEntityExtractorRegexes}
+                  onChange={handleRegexEntityExtractorRegexesChange}
+                  select // tell TextField to render select
+                  label="Use Regexes"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={regexEntityExtractorWordBoundaries}
+                  onChange={handleRegexEntityExtractorWordBoundariesChange}
+                  select // tell TextField to render select
+                  label="Use Word Boundaries"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+              </div>}
               {entityE && <div className='PipelineComponent'>EntitySynonymMapper</div>}
             </div>
           </div>
