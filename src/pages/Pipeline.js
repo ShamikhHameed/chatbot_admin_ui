@@ -16,6 +16,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
 import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 
 // for the featurizer checkboxes
 import FormGroup from '@mui/material/FormGroup';
@@ -40,11 +41,20 @@ import {
 
 import './Pipeline.css'
 
+// const fs = require('fs');
+// const YAML = require('json-to-pretty-yaml');
+
+const yaml = require('js-yaml');
+
 // ----------------------------------------------------------------------
 
 export default function DashboardApp() {
   // used to check whether to display a component or not
-  const [languageModelValue, setLanguageModelValue] = React.useState("MitieNLP");
+  // const [languageModelValue, setLanguageModelValue] = React.useState("MitieNLP");
+  const [languageModelValues, setLanguageModelValues] = React.useState({
+    mitieLM: false,
+    spacyLM: true
+  });
   const [tokenizerValue, setTokenizerValue] = React.useState("WhitespaceTokenizer");
   const [featurizerValues, setFeaturizerValues] = React.useState({
     mitieF: true,
@@ -99,12 +109,14 @@ export default function DashboardApp() {
   const CRFEntityExtractorMinL2 = 0.0;
   const CRFEntityExtractorMaxL2 = 1.0;
 
-  const DucklingEntityExtractorURL = "http://localhost:";
+  const ducklingEntityExtractorURL = "http://localhost:";
 
   const ducklingEntityExtractorMinPortNo = 1024;
   const ducklingEntityExtractorMaxPortNo = 65535;
 
   const ducklingEntityExtractorMinTimeout = 1;
+
+  let JSObjectPipeline;
 
   // LANGUAGE MODELS - State
   // select options state for MitieNLP
@@ -144,7 +156,7 @@ export default function DashboardApp() {
   const [spacyFeaturizerPooling, setSpacyFeaturizerPooling] = React.useState("mean");
 
   // select options state for ConveRTFeaturizer
-  // implement model url
+  const [conveRTFeaturizerModelUrl, setConveRTFeaturizerModelUrl] = React.useState("");
 
   // select options state for LanguageModelFeaturizer
   const [languageModelFeaturizerModelName, setLanguageModelFeaturizerModelName] = React.useState("bert");
@@ -187,6 +199,8 @@ export default function DashboardApp() {
     beforePos2: false,
   });
 
+  const [lexicalSyntacticFeaturizerBeforeCheckedValues, setLexicalSyntacticFeaturizerBeforeCheckedValues] = React.useState(["low", "upper", "title"]);
+
   const [lexicalSyntacticFeaturizerToken, setLexicalSyntacticFeaturizerToken] = React.useState({
     tokenBOS: true,
     tokenEOS: true,
@@ -205,6 +219,8 @@ export default function DashboardApp() {
     tokenPos2: false,
   });
 
+  const [lexicalSyntacticFeaturizerTokenCheckedValues, setLexicalSyntacticFeaturizerTokenCheckedValues] = React.useState(["BOS", "EOS", "low", "upper", "title", "digit"]);
+
   const [lexicalSyntacticFeaturizerAfter, setLexicalSyntacticFeaturizerAfter] = React.useState({
     afterBOS: false,
     afterEOS: false,
@@ -222,6 +238,8 @@ export default function DashboardApp() {
     afterPos: false,
     afterPos2: false,
   });
+
+  const [lexicalSyntacticFeaturizerAfterCheckedValues, setLexicalSyntacticFeaturizerAfterCheckedValues] = React.useState(["low", "upper", "title"]);
 
   // select options state for LogisticRegressionClassifier
   const [logisticRegressionClassifierMaxIter, setLogisticRegressionClassifierMaxIter] = React.useState(1);
@@ -261,6 +279,8 @@ export default function DashboardApp() {
     product: false
   });
 
+  const [spacyEntityExtractorDimensionsCheckedValues, setSpacyEntityExtractorDimensionsCheckedValues] = React.useState(["LOC"]);
+
   // select options state for CRFEntityExtractor
   const [CRFEntityExtractorFlag, setCRFEntityExtractorFlag] = React.useState(true);
   
@@ -285,6 +305,8 @@ export default function DashboardApp() {
     CRFEntityExtractorBeforeTextDenseFeatures: false,
   });
 
+  const [CRFEntityExtractorBeforeCheckedValues, setCRFEntityExtractorBeforeCheckedValues] = React.useState(["low", "upper", "title"]);
+
   const [CRFEntityExtractorToken, setCRFEntityExtractorToken] = React.useState({
     CRFEntityExtractorTokenLow: true,
     CRFEntityExtractorTokenUpper: true,
@@ -305,6 +327,8 @@ export default function DashboardApp() {
     CRFEntityExtractorTokenBias: false,
     CRFEntityExtractorTokenTextDenseFeatures: false,
   });
+
+  const [CRFEntityExtractorTokenCheckedValues, setCRFEntityExtractorTokenCheckedValues] = React.useState(["low", "upper", "title"]);
 
   const [CRFEntityExtractorAfter, setCRFEntityExtractorAfter] = React.useState({
     CRFEntityExtractorAfterLow: true,
@@ -327,6 +351,8 @@ export default function DashboardApp() {
     CRFEntityExtractorAfterTextDenseFeatures: false,
   });
 
+  const [CRFEntityExtractorAfterCheckedValues, setCRFEntityExtractorAfterCheckedValues] = React.useState(["low", "upper", "title"]);
+
   const [CRFEntityExtractorMaxIterations, setCRFEntityExtractorMaxIterations] = React.useState(50);
   const [CRFEntityExtractorL1, setCRFEntityExtractorL1] = React.useState(0.1);
   const [CRFEntityExtractorL2, setCRFEntityExtractorL2] = React.useState(0.1);
@@ -343,6 +369,8 @@ export default function DashboardApp() {
     ducklingEntityExtractorDistance: true
   });
 
+  const [ducklingEntityExtractorDimensionsCheckedValues, setDucklingEntityExtractorDimensionsCheckedValues] = React.useState(["time", "number", "amount-of-money", "distance"]);
+
   const [ducklingEntityExtractorTimeout, setDucklingEntityExtractorTimeout] = React.useState(3);
 
   // select options state for RegexEntityExtractor
@@ -352,8 +380,16 @@ export default function DashboardApp() {
   const [regexEntityExtractorWordBoundaries, setRegexEntityExtractorWordBoundaries] = React.useState(true);
 
   // used to handle change on whether to display a component or not
+
+  // const handleLanguageModelChange = (event) => {
+  //   setLanguageModelValue(event.target.value);
+  // };
+
   const handleLanguageModelChange = (event) => {
-    setLanguageModelValue(event.target.value);
+    setLanguageModelValues({
+      ...languageModelValues,
+      [event.target.name]: event.target.checked,
+    });
   };
 
   const handleTokenizerChange = (event) => {
@@ -462,7 +498,9 @@ export default function DashboardApp() {
   }
 
   // handle chnage for ConveRTFeaturizer
-  // need to implement handleChange for model url
+  const handleConveRTFeaturizerModelUrlChange = (event) => {
+    setConveRTFeaturizerModelUrl(event.target.value);
+  }
 
   // handle chnage for languageModelFeaturizer
   const handleLanguageModelFeaturizerModelNameChange = (event) => {
@@ -557,6 +595,13 @@ export default function DashboardApp() {
       ...lexicalSyntacticFeaturizerBefore,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...lexicalSyntacticFeaturizerBeforeCheckedValues, event.target.value];
+    if (lexicalSyntacticFeaturizerBeforeCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setLexicalSyntacticFeaturizerBeforeCheckedValues(newArray);
   };
 
   const handleLexicalSyntacticFeaturizerTokenChange = (event) => {
@@ -564,6 +609,13 @@ export default function DashboardApp() {
       ...lexicalSyntacticFeaturizerToken,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...lexicalSyntacticFeaturizerTokenCheckedValues, event.target.value];
+    if (lexicalSyntacticFeaturizerTokenCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setLexicalSyntacticFeaturizerTokenCheckedValues(newArray);
   };
 
   const handleLexicalSyntacticFeaturizerAfterChange = (event) => {
@@ -571,6 +623,13 @@ export default function DashboardApp() {
       ...lexicalSyntacticFeaturizerAfter,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...lexicalSyntacticFeaturizerAfterCheckedValues, event.target.value];
+    if (lexicalSyntacticFeaturizerAfterCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setLexicalSyntacticFeaturizerAfterCheckedValues(newArray);
   };
 
   // handle chnage for LogisticRegressionClassifier
@@ -709,6 +768,13 @@ export default function DashboardApp() {
       ...spacyEntityExtractorDimensions,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...spacyEntityExtractorDimensionsCheckedValues, event.target.value];
+    if (spacyEntityExtractorDimensionsCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setSpacyEntityExtractorDimensionsCheckedValues(newArray);
   };
 
   // handle chnage for CRFEntityExtractor
@@ -721,6 +787,13 @@ export default function DashboardApp() {
       ...CRFEntityExtractorBefore,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...CRFEntityExtractorBeforeCheckedValues, event.target.value];
+    if (CRFEntityExtractorBeforeCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setCRFEntityExtractorBeforeCheckedValues(newArray);
   };
 
   const handleCRFEntityExtractorTokenChange = (event) => {
@@ -728,6 +801,13 @@ export default function DashboardApp() {
       ...CRFEntityExtractorToken,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...CRFEntityExtractorTokenCheckedValues, event.target.value];
+    if (CRFEntityExtractorTokenCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setCRFEntityExtractorTokenCheckedValues(newArray);
   };
 
   const handleCRFEntityExtractorAfterChange = (event) => {
@@ -735,6 +815,13 @@ export default function DashboardApp() {
       ...CRFEntityExtractorAfter,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...CRFEntityExtractorAfterCheckedValues, event.target.value];
+    if (CRFEntityExtractorAfterCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setCRFEntityExtractorAfterCheckedValues(newArray);
   };
 
   const handleCRFEntityExtractorMaxIterationsChange = (event) => {
@@ -786,6 +873,13 @@ export default function DashboardApp() {
       ...ducklingEntityExtractorDimensions,
       [event.target.name]: event.target.checked,
     });
+
+    let newArray = [...ducklingEntityExtractorDimensionsCheckedValues, event.target.value];
+    if (ducklingEntityExtractorDimensionsCheckedValues.includes(event.target.value)) {
+      newArray = newArray.filter(val => val !== event.target.value);
+    } 
+
+    setDucklingEntityExtractorDimensionsCheckedValues(newArray);
   };
 
   const handleDucklingEntityExtractorTimeoutChange = (event) => {
@@ -813,6 +907,8 @@ export default function DashboardApp() {
     setRegexEntityExtractorWordBoundaries(event.target.value);
   }
 
+
+  const { mitieLM, spacyLM } = languageModelValues;
 
   const { mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF } = featurizerValues;
   const featurizerError = [mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF].filter((v) => v).length === 0;
@@ -882,6 +978,206 @@ export default function DashboardApp() {
     languageModelFeaturizerModelWeightOptions = languageModelFeaturizerModelNameType.map((val) => <MenuItem value={val}>{val}</MenuItem>);
   }
 
+  // method to convert the variables into a js object
+  const generateJSObjectPipeline = () => {
+    JSObjectPipeline = {
+      "pipeline": [
+        // rendering the language model components
+        // (languageModelValue === "MitieNLP" ? {
+        //   "name": "MitieNLP",
+        //   "model": mitieNLPModelPath
+        // } : null),
+        // (languageModelValue === "SpacyNLP" ? {
+        //   "name": "SpacyNLP",
+        //   "model": spacyNLPModelLang,
+        //   "case_sensitive": spacyNLPCaseSensitive
+        // } : null),
+
+        (languageModelValues.mitieLM === true ? {
+          "name": "MitieNLP",
+          "model": mitieNLPModelPath
+        } : null),
+        (languageModelValues.spacyLM === true ? {
+          "name": "SpacyNLP",
+          "model": spacyNLPModelLang,
+          "case_sensitive": spacyNLPCaseSensitive
+        } : null),
+
+        // rendering the tokenizer components
+        (tokenizerValue === "WhitespaceTokenizer" ? {
+          "name": "WhitespaceTokenizer",
+          "intent_tokenization_flag": whitespaceTokenizerFlag,
+          "intent_split_symbol": whitespaceTokenizerSplitSymbol,
+          "token_pattern": whitespaceTokenizerTokenPattern
+        } : null),
+        (tokenizerValue === "JiebaTokenizer" ? {
+          "name": "JiebaTokenizer",
+          "intent_tokenization_flag": jiebaTokenizerFlag,
+          "intent_split_symbol": jiebaTokenizerSplitSymbol,
+          "token_pattern": jiebaTokenizerTokenPattern
+        } : null),
+        (tokenizerValue === "JiebaTokenizer" ? {
+          "name": "JiebaTokenizer",
+          "intent_tokenization_flag": jiebaTokenizerFlag,
+          "intent_split_symbol": jiebaTokenizerSplitSymbol,
+          "token_pattern": jiebaTokenizerTokenPattern
+        } : null),
+        (tokenizerValue === "MitieTokenizer" ? {
+          "name": "MitieTokenizer",
+          "intent_tokenization_flag": mitieTokenizerFlag,
+          "intent_split_symbol": mitieTokenizerSplitSymbol,
+          "token_pattern": mitieTokenizerTokenPattern
+        } : null),
+        (tokenizerValue === "SpacyTokenizer" ? {
+          "name": "SpacyTokenizer",
+          "intent_tokenization_flag": spacyTokenizerFlag,
+          "intent_split_symbol": spacyTokenizerSplitSymbol,
+          "token_pattern": spacyTokenizerTokenPattern
+        } : null),
+        // rendering the featurizer components
+        (featurizerValues.mitieF === true ? {
+          "name": "MitieFeaturizer",
+          "pooling": mitieFeaturizerPooling
+        } : null),
+        (featurizerValues.spacyF === true ? {
+          "name": "SpacyFeaturizer",
+          "pooling": spacyFeaturizerPooling
+        } : null),
+        (featurizerValues.convertF === true ? {
+          "name": "ConveRTFeaturizer",
+          "model_url": conveRTFeaturizerModelUrl
+        } : null),
+        (featurizerValues.languageModelF === true ? {
+          "name": "LanguageModelFeaturizer",
+          "model_name": languageModelFeaturizerModelName,
+          "model_weights": languageModelFeaturizerModelWeight,
+          "cache_dir": languageModelFeaturizerCacheDir
+        } : null),
+        (featurizerValues.regexF === true && regexFeaturizerHidePatternsTextField === true ? {
+          "name": "RegexFeaturizer",
+          "case_sensitive": regexFeaturizerCaseSensitive,
+          "use_word_boundaries": regexFeaturizerWordBoundaries,
+          "number_additional_patterns": regexFeaturizerNumOfPatterns
+        } : null),
+        (featurizerValues.regexF === true && regexFeaturizerHidePatternsTextField === false ? {
+          "name": "RegexFeaturizer",
+          "case_sensitive": regexFeaturizerCaseSensitive,
+          "use_word_boundaries": regexFeaturizerWordBoundaries
+        } : null),
+        (featurizerValues.countVectorsF === true ? {
+          "name": "CountVectorsFeaturizer",
+          "analyzer": countVectorsFeaturizerAnalyzer,
+          "min_ngram": countVectorsFeaturizerMinNGram,
+          "max_ngram": countVectorsFeaturizerMaxNGram,
+          "OOV_token": countVectorsFeaturizerOOVToken,
+          "use_shared_vocab": countVectorsFeaturizerSharedVocab,
+          "additional_vocabulary_size": {
+            "text": countVectorsFeaturizerTextSize,
+            "response": countVectorsFeaturizerResponseSize,
+            "action_text": countVectorsFeaturizerActionTextSize
+          }
+        } : null),
+        (featurizerValues.lexicalSyntacticF === true ? {
+          "name": "LexicalSyntacticFeaturizer",
+          "features": [
+            lexicalSyntacticFeaturizerBeforeCheckedValues,
+            lexicalSyntacticFeaturizerTokenCheckedValues,
+            lexicalSyntacticFeaturizerAfterCheckedValues,
+          ]
+        } : null),
+        (classifierValues.mitieC === true ? {
+          "name": "MitieIntentClassifier"
+        } : null),
+        (classifierValues.logisticC === true && regexFeaturizerHidePatternsTextField === true ? {
+          "name": "LogisticRegressionClassifier",
+          "max_iter": logisticRegressionClassifierMaxIter,
+          "solver": logisticRegressionClassifierSolver,
+          "tol": logisticRegressionClassifierTol,
+          "random_state": logisticRegressionClassifierRandomState
+        } : null),
+        (classifierValues.logisticC === true && regexFeaturizerHidePatternsTextField === false ? {
+          "name": "LogisticRegressionClassifier",
+          "max_iter": logisticRegressionClassifierMaxIter,
+          "solver": logisticRegressionClassifierSolver,
+          "tol": logisticRegressionClassifierTol
+        } : null),
+        (classifierValues.skLearnC === true ? {
+          "name": "SklearnIntentClassifier",
+          "C": [sklearnIntentClassifierC1, sklearnIntentClassifierC2, sklearnIntentClassifierC3, sklearnIntentClassifierC4, sklearnIntentClassifierC5, sklearnIntentClassifierC6],
+          "kernels": [sklearnIntentClassifierKernels],
+          "gamma": [sklearnIntentClassifierGamma],
+          "max_cross_validation_folds": sklearnIntentClassifierMaxFolds,
+          "scoring_function": sklearnIntentClassifierScoringFunc
+        } : null),
+        (classifierValues.keywordC === true ? {
+          "name": "KeywordIntentClassifier",
+          "case_sensitive": keywordIntentClassifierCaseSensitive,
+        } : null),
+        (classifierValues.dietC === true ? {
+          "name": "DIETClassifier",
+          "epochs": DIETClassifierEpochs,
+          "entity_recognition": DIETClassifierEntityRecognition,
+          "intent_classification": DIETClassifierIntentClassification
+        } : null),
+        (classifierValues.fallbackC === true ? {
+          "name": "FallbackClassifier",
+          "threshold": fallbackClassifierThreshold
+        } : null),
+        (classifierValues.mitieC === true ? {
+          "name": "MitieEntityExtractor"
+        } : null),
+        (extractorValues.spacyE === true ? {
+          "name": "SpacyEntityExtractor",
+          "dimensions": spacyEntityExtractorDimensionsCheckedValues
+        } : null),
+        (extractorValues.crfE === true ? {
+          "name": "CRFEntityExtractor",
+          "BILOU_flag": CRFEntityExtractorFlag,
+          "features": [
+            CRFEntityExtractorBeforeCheckedValues,
+            CRFEntityExtractorTokenCheckedValues,
+            CRFEntityExtractorAfterCheckedValues
+          ],
+          "max_iterations": CRFEntityExtractorMaxIterations,
+          "L1_c": CRFEntityExtractorL1,
+          "L2_c": CRFEntityExtractorL2,
+          "split_entities_by_comma": {
+            "address": CRFEntityExtractorSplitAddress,
+            "email": CRFEntityExtractorSplitEmail
+          }
+        } : null),
+        (extractorValues.ducklingE === true ? {
+          "name": "DucklingEntityExtractor",
+          "url": ducklingEntityExtractorURL + ducklingEntityExtractorPortNo,
+          "dimensions": ducklingEntityExtractorDimensionsCheckedValues,
+          "timeout": ducklingEntityExtractorTimeout
+        } : null),
+        (extractorValues.regexE === true ? {
+          "name": "RegexEntityExtractor",
+          "case_sensitive": regexEntityExtractorCaseSensitive,
+          "use_lookup_tables": regexEntityExtractorLookupTables,
+          "use_regexes": regexEntityExtractorRegexes,
+          "use_word_boundaries": regexEntityExtractorWordBoundaries
+        } : null),
+        (extractorValues.entityE === true ? {
+          "name": "EntitySynonymMapper"
+        } : null),
+      ]
+    }
+  }
+
+  const trainModel = async () => {
+    await generateJSObjectPipeline();
+    const JSObjectPipelineNullRemoved = JSObjectPipeline.pipeline.filter(x => x !== null);
+    console.log("JSON");
+    console.log(JSON.stringify(JSObjectPipelineNullRemoved));
+    console.log("YAML");
+    // console.log(YAML.stringify(JSON.stringify(JSObjectPipeline)));
+    console.log(yaml.dump(JSObjectPipelineNullRemoved));
+    // const data = YAML.stringify(JSON.stringify(JSObjectPipeline));
+    // fs.writeFile('YAML-PIPELINE.yaml', data);
+  }
+
   return (
     <Page title="Pipeline | Minimal-UI">
       <Container maxWidth="xl">
@@ -893,9 +1189,11 @@ export default function DashboardApp() {
             <DragDrop />
           </div>
         </DndProvider> */}
-        <div style={{height: "100vh", width: "100vw"}}>
-            <div style={{height: "100vh", width: "16vw", float: "left"}}>
-            <FormControl>
+        <div style={{height: "100vh", width: "76vw"}}>
+            <div style={{height: "100vh", width: "17vw", float: "left"}}>
+
+            {/* commented this out caus of radio button. implemented checkbox below */}
+            {/* <FormControl>
               <FormLabel id="demo-controlled-radio-buttons-group">Tokenizers</FormLabel>
               <RadioGroup
                 aria-labelledby="demo-controlled-radio-buttons-group"
@@ -906,6 +1204,28 @@ export default function DashboardApp() {
                 <FormControlLabel value="MitieNLP" control={<Radio />} label="MitieNLP" />
                 <FormControlLabel value="SpacyNLP" control={<Radio />} label="SpacyNLP" />
               </RadioGroup>
+            </FormControl> */}
+
+              <FormControl
+              component="fieldset"
+              variant="standard"
+            >
+              <FormLabel component="legend">Language Models</FormLabel>
+              <FormGroup>
+                {/* commented this out so that user cannot choose this open. Uncomment if needed */}
+                {/* <FormControlLabel
+                  control={
+                    <Checkbox checked={mitieLM} onChange={handleLanguageModelChange} name="mitieLM" />
+                  }
+                  label="MitieNLP"
+                /> */}
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={spacyLM} onChange={handleLanguageModelChange} name="spacyLM" />
+                  }
+                  label="SpacyNLP"
+                />
+              </FormGroup>
             </FormControl>
             <br/><br/>
 
@@ -918,7 +1238,8 @@ export default function DashboardApp() {
                 onChange={handleTokenizerChange}
               >
                 <FormControlLabel value="WhitespaceTokenizer" control={<Radio />} label="WhitespaceTokenizer" />
-                <FormControlLabel value="JiebaTokenizer" control={<Radio />} label="JiebaTokenizer" />
+                {/* commented this out so that user cannot choose this open. Uncomment if needed */}
+                {/* <FormControlLabel value="JiebaTokenizer" control={<Radio />} label="JiebaTokenizer" /> */}
                 <FormControlLabel value="MitieTokenizer" control={<Radio />} label="MitieTokenizer" />
                 <FormControlLabel value="SpacyTokenizer" control={<Radio />} label="SpacyTokenizer" />
               </RadioGroup>
@@ -926,10 +1247,9 @@ export default function DashboardApp() {
             <br/><br/>
 
             <FormControl
-              required
-              error={featurizerError}
+              // required
+              // error={featurizerError}
               component="fieldset"
-              // sx={{ m: 3 }}
               variant="standard"
             >
               <FormLabel component="legend">Featurizers</FormLabel>
@@ -946,18 +1266,19 @@ export default function DashboardApp() {
                   }
                   label="SpacyFeaturizer"
                 />
-                <FormControlLabel
+                {/* commented this out so that user cannot choose this open. Uncomment if needed */}
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={convertF} onChange={handleFeaturizerChange} name="convertF" />
                   }
                   label="ConveRTFeaturizer"
-                />
-                <FormControlLabel
+                /> */}
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={languageModelF} onChange={handleFeaturizerChange} name="languageModelF" />
                   }
                   label="LanguageModelFeaturizer"
-                />
+                /> */}
                 <FormControlLabel
                   control={
                     <Checkbox checked={regexF} onChange={handleFeaturizerChange} name="regexF" />
@@ -977,13 +1298,13 @@ export default function DashboardApp() {
                   label="LexicalSyntacticFeaturizer"
                 />
               </FormGroup>
-              <FormHelperText>Choose atleast one Featurizer</FormHelperText>
+              {/* <FormHelperText>Choose atleast one Featurizer</FormHelperText> */}
             </FormControl>
             <br/><br/>
 
             <FormControl
-              required
-              error={classifierError}
+              // required
+              // error={classifierError}
               component="fieldset"
               // sx={{ m: 3 }}
               variant="standard"
@@ -1027,13 +1348,13 @@ export default function DashboardApp() {
                   label="FallbackClassifier"
                 />
               </FormGroup>
-              <FormHelperText>Choose atleast one Classifier</FormHelperText>
+              {/* <FormHelperText>Choose atleast one Classifier</FormHelperText> */}
             </FormControl>
             <br/><br/>
 
             <FormControl
-              required
-              error={extractorError}
+              // required
+              // error={extractorError}
               component="fieldset"
               // sx={{ m: 3 }}
               variant="standard"
@@ -1058,12 +1379,12 @@ export default function DashboardApp() {
                   }
                   label="CRFEntityExtractor"
                 />
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={ducklingE} onChange={handleExtractorChange} name="ducklingE" />
                   }
                   label="DucklingEntityExtractor"
-                />
+                /> */}
                 <FormControlLabel
                   control={
                     <Checkbox checked={regexE} onChange={handleExtractorChange} name="regexE" />
@@ -1077,11 +1398,12 @@ export default function DashboardApp() {
                   label="EntitySynonymMapper"
                 />
               </FormGroup>
-              <FormHelperText>Choose atleast one Extractor</FormHelperText>
+              {/* <FormHelperText>Choose atleast one Extractor</FormHelperText> */}
             </FormControl>
             </div>
-            <div style={{height: "100vh", width: "84vw", float: "right"}}>
-              {languageModelValue === "MitieNLP" && 
+            <div style={{height: "100vh", width: "59vw", float: "left"}}>
+              {/* {languageModelValue === "MitieNLP" &&  */}
+              {mitieLM &&
               <div className='PipelineComponent'>
                 MitieNLP
                 <br/><br/>
@@ -1095,7 +1417,8 @@ export default function DashboardApp() {
                 />
               </div>}
 
-              {languageModelValue === "SpacyNLP" && 
+              {/* {languageModelValue === "SpacyNLP" &&  */}
+              {spacyLM &&
               <div className='PipelineComponent'>
                 SpacyNLP
                 <br/><br/>
@@ -1324,6 +1647,15 @@ export default function DashboardApp() {
               {convertF && 
               <div className='PipelineComponent'>
                 ConveRTFeaturizer
+                <br/><br/>
+
+                <TextField
+                  value={conveRTFeaturizerModelUrl}
+                  onChange={handleConveRTFeaturizerModelUrlChange}
+                  variant="outlined"
+                  label="Model URL"
+                  className="TokenizerDropDowns"
+                />
               </div>}
               {languageModelF && 
               <div className='PipelineComponent'>
@@ -1525,85 +1857,85 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeBOS} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeBOS" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeBOS} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeBOS" value="BOS" />
                       }
                       label="BOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeEOS} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeEOS" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeEOS} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeEOS" value="EOS" />
                       }
                       label="EOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeLow} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeLow" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeLow} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeUpper} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeUpper" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeUpper} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeTitle} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeTitle" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeTitle} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeDigit} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeDigit" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeDigit} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforePrefix5} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePrefix5" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforePrefix5} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforePrefix2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePrefix2" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforePrefix2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeSuffix5} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix5" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeSuffix5} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeSuffix3} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix3" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeSuffix3} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeSuffix2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix2" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeSuffix2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforeSuffix1} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix1" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforeSuffix1} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforeSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforePos} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePos" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforePos} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={beforePos2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePos2" />
+                        <Checkbox className="lexicalSyntacticFeaturizerCheckBox" checked={beforePos2} onChange={handleLexicalSyntacticFeaturizerBeforeChange} name="beforePos2" value="pos2" />
                       }
                       label="pos2"
                     />
@@ -1625,85 +1957,85 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenBOS} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenBOS" />
+                        <Checkbox checked={tokenBOS} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenBOS" value="BOS" />
                       }
                       label="BOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenEOS} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenEOS" />
+                        <Checkbox checked={tokenEOS} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenEOS" value="EOS" />
                       }
                       label="EOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenLow} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenLow" />
+                        <Checkbox checked={tokenLow} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenUpper} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenUpper" />
+                        <Checkbox checked={tokenUpper} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenTitle} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenTitle" />
+                        <Checkbox checked={tokenTitle} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenDigit} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenDigit" />
+                        <Checkbox checked={tokenDigit} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenPrefix5} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPrefix5" />
+                        <Checkbox checked={tokenPrefix5} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenPrefix2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPrefix2" />
+                        <Checkbox checked={tokenPrefix2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenSuffix5} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix5" />
+                        <Checkbox checked={tokenSuffix5} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenSuffix3} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix3" />
+                        <Checkbox checked={tokenSuffix3} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenSuffix2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix2" />
+                        <Checkbox checked={tokenSuffix2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenSuffix1} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix1" />
+                        <Checkbox checked={tokenSuffix1} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenPos} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPos" />
+                        <Checkbox checked={tokenPos} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={tokenPos2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPos2" />
+                        <Checkbox checked={tokenPos2} onChange={handleLexicalSyntacticFeaturizerTokenChange} name="tokenPos2" value="pos2" />
                       }
                       label="pos2"
                     />
@@ -1725,85 +2057,85 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterBOS} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterBOS" />
+                        <Checkbox checked={afterBOS} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterBOS" value="BOS" />
                       }
                       label="BOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterEOS} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterEOS" />
+                        <Checkbox checked={afterEOS} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterEOS" value="EOS" />
                       }
                       label="EOS"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterLow} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterLow" />
+                        <Checkbox checked={afterLow} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterUpper} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterUpper" />
+                        <Checkbox checked={afterUpper} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterTitle} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterTitle" />
+                        <Checkbox checked={afterTitle} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterDigit} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterDigit" />
+                        <Checkbox checked={afterDigit} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterPrefix5} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPrefix5" />
+                        <Checkbox checked={afterPrefix5} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterPrefix2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPrefix2" />
+                        <Checkbox checked={afterPrefix2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterSuffix5} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix5" />
+                        <Checkbox checked={afterSuffix5} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterSuffix3} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix3" />
+                        <Checkbox checked={afterSuffix3} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterSuffix2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix2" />
+                        <Checkbox checked={afterSuffix2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterSuffix1} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix1" />
+                        <Checkbox checked={afterSuffix1} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterPos} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPos" />
+                        <Checkbox checked={afterPos} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={afterPos2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPos2" />
+                        <Checkbox checked={afterPos2} onChange={handleLexicalSyntacticFeaturizerAfterChange} name="afterPos2" value="pos2" />
                       }
                       label="pos2"
                     />
@@ -2096,25 +2428,25 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={person} onChange={handleSpacyEntityExtractorDimensionsChange} name="person" />
+                        <Checkbox checked={person} onChange={handleSpacyEntityExtractorDimensionsChange} name="person" value="PERSON" />
                       }
                       label="PERSON"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={loc} onChange={handleSpacyEntityExtractorDimensionsChange} name="loc" />
+                        <Checkbox checked={loc} onChange={handleSpacyEntityExtractorDimensionsChange} name="loc" value="LOC" />
                       }
                       label="LOC"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={org} onChange={handleSpacyEntityExtractorDimensionsChange} name="org" />
+                        <Checkbox checked={org} onChange={handleSpacyEntityExtractorDimensionsChange} name="org" value="ORG" />
                       }
                       label="ORG"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={product} onChange={handleSpacyEntityExtractorDimensionsChange} name="product" />
+                        <Checkbox checked={product} onChange={handleSpacyEntityExtractorDimensionsChange} name="product" value="PRODUCT" />
                       }
                       label="PRODUCT"
                     />
@@ -2152,91 +2484,91 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeLow} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeLow" />
+                        <Checkbox checked={CRFEntityExtractorBeforeLow} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeUpper} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeUpper" />
+                        <Checkbox checked={CRFEntityExtractorBeforeUpper} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeTitle} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTitle" />
+                        <Checkbox checked={CRFEntityExtractorBeforeTitle} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeDigit} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeDigit" />
+                        <Checkbox checked={CRFEntityExtractorBeforeDigit} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforePrefix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix5" />
+                        <Checkbox checked={CRFEntityExtractorBeforePrefix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforePrefix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix2" />
+                        <Checkbox checked={CRFEntityExtractorBeforePrefix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeSuffix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix5" />
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix5} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeSuffix3} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix3" />
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix3} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeSuffix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix2" />
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeSuffix1} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix1" />
+                        <Checkbox checked={CRFEntityExtractorBeforeSuffix1} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforePos} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos" />
+                        <Checkbox checked={CRFEntityExtractorBeforePos} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforePos2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos2" />
+                        <Checkbox checked={CRFEntityExtractorBeforePos2} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePos2" value="pos2" />
                       }
                       label="pos2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforePattern} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePattern" />
+                        <Checkbox checked={CRFEntityExtractorBeforePattern} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforePattern" value="pattern" />
                       }
                       label="pattern"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeBias} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeBias" />
+                        <Checkbox checked={CRFEntityExtractorBeforeBias} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeBias" value="bias" />
                       }
                       label="bias"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorBeforeTextDenseFeatures} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTextDenseFeatures" />
+                        <Checkbox checked={CRFEntityExtractorBeforeTextDenseFeatures} onChange={handleCRFEntityExtractorBeforeChange} name="CRFEntityExtractorBeforeTextDenseFeatures" value="text_dense_features" />
                       }
                       label="text_dense_features"
                     />
@@ -2258,91 +2590,91 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenLow} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenLow" />
+                        <Checkbox checked={CRFEntityExtractorTokenLow} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenUpper} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenUpper" />
+                        <Checkbox checked={CRFEntityExtractorTokenUpper} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenTitle} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTitle" />
+                        <Checkbox checked={CRFEntityExtractorTokenTitle} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenDigit} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenDigit" />
+                        <Checkbox checked={CRFEntityExtractorTokenDigit} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenPrefix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix5" />
+                        <Checkbox checked={CRFEntityExtractorTokenPrefix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenPrefix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix2" />
+                        <Checkbox checked={CRFEntityExtractorTokenPrefix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenSuffix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix5" />
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix5} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenSuffix3} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix3" />
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix3} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenSuffix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix2" />
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenSuffix1} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix1" />
+                        <Checkbox checked={CRFEntityExtractorTokenSuffix1} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenPos} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos" />
+                        <Checkbox checked={CRFEntityExtractorTokenPos} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenPos2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos2" />
+                        <Checkbox checked={CRFEntityExtractorTokenPos2} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPos2" value="pos2" />
                       }
                       label="pos2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenPattern} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPattern" />
+                        <Checkbox checked={CRFEntityExtractorTokenPattern} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenPattern" value="pattern" />
                       }
                       label="pattern"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenBias} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenBias" />
+                        <Checkbox checked={CRFEntityExtractorTokenBias} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenBias" value="bias" />
                       }
                       label="bias"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorTokenTextDenseFeatures} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTextDenseFeatures" />
+                        <Checkbox checked={CRFEntityExtractorTokenTextDenseFeatures} onChange={handleCRFEntityExtractorTokenChange} name="CRFEntityExtractorTokenTextDenseFeatures" value="text_dense_features" />
                       }
                       label="text_dense_features"
                     />
@@ -2364,91 +2696,91 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterLow} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterLow" />
+                        <Checkbox checked={CRFEntityExtractorAfterLow} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterLow" value="low" />
                       }
                       label="low"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterUpper} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterUpper" />
+                        <Checkbox checked={CRFEntityExtractorAfterUpper} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterUpper" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterTitle} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTitle" />
+                        <Checkbox checked={CRFEntityExtractorAfterTitle} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTitle" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterDigit} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterDigit" />
+                        <Checkbox checked={CRFEntityExtractorAfterDigit} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterDigit" value="digit" />
                       }
                       label="digit"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterPrefix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix5" />
+                        <Checkbox checked={CRFEntityExtractorAfterPrefix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix5" value="prefix5" />
                       }
                       label="prefix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterPrefix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix2" />
+                        <Checkbox checked={CRFEntityExtractorAfterPrefix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPrefix2" value="prefix2" />
                       }
                       label="prefix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterSuffix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix5" />
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix5} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix5" value="suffix5" />
                       }
                       label="suffix5"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterSuffix3} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix3" />
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix3} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix3" value="suffix3" />
                       }
                       label="suffix3"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterSuffix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix2" />
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix2" value="suffix2" />
                       }
                       label="suffix2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterSuffix1} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix1" />
+                        <Checkbox checked={CRFEntityExtractorAfterSuffix1} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterSuffix1" value="suffix1" />
                       }
                       label="suffix1"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterPos} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos" />
+                        <Checkbox checked={CRFEntityExtractorAfterPos} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos" value="pos" />
                       }
                       label="pos"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterPos2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos2" />
+                        <Checkbox checked={CRFEntityExtractorAfterPos2} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPos2" value="pos2" />
                       }
                       label="pos2"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterPattern} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPattern" />
+                        <Checkbox checked={CRFEntityExtractorAfterPattern} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterPattern" value="pattern" />
                       }
                       label="pattern"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterBias} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterBias" />
+                        <Checkbox checked={CRFEntityExtractorAfterBias} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterBias" value="bias" />
                       }
                       label="bias"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={CRFEntityExtractorAfterTextDenseFeatures} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTextDenseFeatures" />
+                        <Checkbox checked={CRFEntityExtractorAfterTextDenseFeatures} onChange={handleCRFEntityExtractorAfterChange} name="CRFEntityExtractorAfterTextDenseFeatures" value="text_dense_features" />
                       }
                       label="text_dense_features"
                     />
@@ -2543,25 +2875,25 @@ export default function DashboardApp() {
                   >
                     <FormControlLabel
                       control={
-                        <Checkbox checked={ducklingEntityExtractorTime} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorTime" />
+                        <Checkbox checked={ducklingEntityExtractorTime} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorTime" value="time" />
                       }
                       label="time"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={ducklingEntityExtractorNumber} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorNumber" />
+                        <Checkbox checked={ducklingEntityExtractorNumber} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorNumber" value="upper" />
                       }
                       label="upper"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={ducklingEntityExtractorMoney} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorMoney" />
+                        <Checkbox checked={ducklingEntityExtractorMoney} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorMoney" value="title" />
                       }
                       label="title"
                     />
                     <FormControlLabel
                       control={
-                        <Checkbox checked={ducklingEntityExtractorDistance} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorDistance" />
+                        <Checkbox checked={ducklingEntityExtractorDistance} onChange={handleDucklingEntityExtractorDimensionsChange} name="ducklingEntityExtractorDistance" value="digit" />
                       }
                       label="digit"
                     />
@@ -2637,6 +2969,14 @@ export default function DashboardApp() {
                 </TextField>
               </div>}
               {entityE && <div className='PipelineComponent'>EntitySynonymMapper</div>}
+
+              <Button 
+              variant="contained"
+              onClick={trainModel}
+              className="trainBtn"
+              >
+                Train Model
+              </Button>
             </div>
           </div>
           <div style={{clear: "both"}}/>
