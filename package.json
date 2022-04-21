@@ -52,6 +52,8 @@
     "formik": "^2.2.9",
     "framer-motion": "^4.1.17",
     "history": "^5.0.1",
+    "js-yaml": "^4.1.0",
+    "json-to-pretty-yaml": "^1.2.2",
     "lodash": "^4.17.21",
     "numeral": "^2.0.6",
     "prop-types": "^15.7.2",
