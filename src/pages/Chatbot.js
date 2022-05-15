@@ -21,12 +21,12 @@ import {
 
 export default function DashboardApp() {
   return (
-    <Page title="Chatbot | Minimal-UI">
+    <div>
       <Container maxWidth="xl">
         <Box sx={{ pb: 5 }}>
-          <Typography variant="h4">Hi, You can start chatting here!</Typography>
+          <Typography data-testid="chatbot-header" variant="h4">Hi, You can start chatting here!</Typography>
         </Box>
       </Container>
-    </Page>
+    </div>
   );
 }

@@ -1,9 +1,26 @@
+.componentBorder {
+    /* height: 168vh;  */
+    min-height: 168vh;
+    /* height: auto; */
+    overflow:auto;
+    width: 76vw;
+    border: 2px solid #d7d7d7;
+    margin: 0px -10px 0px -10px;
+    padding: 15px 10px 5px 10px;
+    border-radius: 15px;
+}
+
+.componentBorderPolicies {
+    margin: 20px -10px 0px -10px;
+}
+
 .PipelineComponent {
-    width: 59vw;
+    /* width: 57.5vw; */
     padding: 20px 30px 20px 30px;
     margin: 5px 0px 5px 0px;
     border-radius: 15px;
-    border: 2px solid #3366FF;
+    /* border: 2px solid #3366FF; */
+    border: 2px solid #d7d7d7;
 }
 
 .TokenizerDropDowns {

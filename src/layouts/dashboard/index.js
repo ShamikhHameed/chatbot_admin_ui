@@ -8,8 +8,10 @@ import DashboardSidebar from './DashboardSidebar';
 
 // ----------------------------------------------------------------------
 
-const APP_BAR_MOBILE = 64;
-const APP_BAR_DESKTOP = 92;
+// const APP_BAR_MOBILE = 64;
+// const APP_BAR_DESKTOP = 92;
+const APP_BAR_MOBILE = 0;
+const APP_BAR_DESKTOP = 0;
 
 const RootStyle = styled('div')({
   display: 'flex',
@@ -37,7 +39,7 @@ export default function DashboardLayout() {
 
   return (
     <RootStyle>
-      <DashboardNavbar onOpenSidebar={() => setOpen(true)} />
+      {/* <DashboardNavbar onOpenSidebar={() => setOpen(true)} /> */}
       <DashboardSidebar isOpenSidebar={open} onCloseSidebar={() => setOpen(false)} />
       <MainStyle>
         <Outlet />

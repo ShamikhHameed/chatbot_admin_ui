@@ -7,6 +7,7 @@ import { Box, Grid, Container, Typography } from '@mui/material';
 
 // for the tokenizer radio
 import * as React from 'react';
+import { useEffect } from 'react';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -17,11 +18,18 @@ import MenuItem from '@mui/material/MenuItem';
 import InputLabel from '@mui/material/InputLabel';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 
 // for the featurizer checkboxes
 import FormGroup from '@mui/material/FormGroup';
 import FormHelperText from '@mui/material/FormHelperText';
 import Checkbox from '@mui/material/Checkbox';
+
+import axios from 'axios';
+
+import OutlinedDiv from '../components/OutlinedDiv';
 
 import Page from '../components/Page';
 import {
@@ -48,7 +56,12 @@ const yaml = require('js-yaml');
 
 // ----------------------------------------------------------------------
 
+const Alert = React.forwardRef((props, ref) =>
+  <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />
+);
+
 export default function DashboardApp() {
+  // PIPELINE
   // used to check whether to display a component or not
   // const [languageModelValue, setLanguageModelValue] = React.useState("MitieNLP");
   const [languageModelValues, setLanguageModelValues] = React.useState({
@@ -57,25 +70,26 @@ export default function DashboardApp() {
   });
   const [tokenizerValue, setTokenizerValue] = React.useState("WhitespaceTokenizer");
   const [featurizerValues, setFeaturizerValues] = React.useState({
-    mitieF: true,
-    spacyF: false,
+    mitieF: false,
+    spacyF: true,
     convertF: false,
     languageModelF: false,
     regexF: false,
     countVectorsF: false,
     lexicalSyntacticF: false,
+    gensimF: false
   });
   const [classifierValues, setClassifierValues] = React.useState({
-    mitieC: true,
+    mitieC: false,
     logisticC: false,
     skLearnC: false,
-    keywordC: false,
+    keywordC: true,
     dietC: false,
     fallbackC: false,
   });
   const [extractorValues, setExtractorValues] = React.useState({
-    mitieE: true,
-    spacyE: false,
+    mitieE: false,
+    spacyE: true,
     crfE: false,
     ducklingE: false,
     regexE: false,
@@ -91,8 +105,11 @@ export default function DashboardApp() {
   const countVectorsFeaturizerMinResponseSize = 1000;
   const countVectorsFeaturizerMinActionTextSize = 1000;
 
-  const logisticRegressionClassifierMaxIterValue = 1;
+  const gensimFeaturizerCacheDirDefaultValue = "path/to/cache";
+  const gensimFeaturizerFileDefaultValue = "wordvectors.kv";
 
+  const logisticRegressionClassifierMaxIterValue = 1;
+  const logisticRegressionClassifierMinTol = 0;
   const logisticRegressionClassifierMinRandomState = 1;
 
   const sklearnIntentClassifierMinC = 1;
@@ -117,6 +134,9 @@ export default function DashboardApp() {
   const ducklingEntityExtractorMinTimeout = 1;
 
   let JSObjectPipeline;
+  let JSObjectPolicies;
+
+  const [formError, setFormError] = React.useState(false);
 
   // LANGUAGE MODELS - State
   // select options state for MitieNLP
@@ -148,6 +168,9 @@ export default function DashboardApp() {
   const [spacyTokenizerSplitSymbol, setSpacyTokenizerSplitSymbol] = React.useState("_");
   const [spacyTokenizerTokenPattern, setSpacyTokenizerTokenPattern] = React.useState(" ");
 
+  // select options state for SEETMTokenizer
+  // NEED TO BE IMPLEMENTED
+
   // FEATURIZERS - State
   // select options state for MitieFeaturizer
   const [mitieFeaturizerPooling, setMitieFeaturizerPooling] = React.useState("mean");
@@ -169,16 +192,22 @@ export default function DashboardApp() {
   const [regexFeaturizerWordBoundaries, setRegexFeaturizerWordBoundaries] = React.useState(true);
   const [regexFeaturizerNumOfPatterns, setRegexFeaturizerNumOfPatterns] = React.useState(10);
   const [regexFeaturizerHidePatternsTextField, setRegexFeaturizerHidePatternsTextField] = React.useState(false);
+  const [regexFeaturizerNumOfPatternsError, setRegexFeaturizerNumOfPatternsError] = React.useState(false);
 
   // select options state for CountVectorsFeaturizer
   const [countVectorsFeaturizerAnalyzer, setCountVectorsFeaturizerAnalyzer] = React.useState("word");
   const [countVectorsFeaturizerMinNGram, setCountVectorsFeaturizerMinNGram] = React.useState(1);
+  const [countVectorsFeaturizerMinNGramError, setCountVectorsFeaturizerMinNGramError] = React.useState(false);
   const [countVectorsFeaturizerMaxNGram, setCountVectorsFeaturizerMaxNGram] = React.useState(1);
+  const [countVectorsFeaturizerMaxNGramError, setCountVectorsFeaturizerMaxNGramError] = React.useState(false);
   const [countVectorsFeaturizerOOVToken, setCountVectorsFeaturizerOOVToken] = React.useState("None");
   const [countVectorsFeaturizerSharedVocab, setCountVectorsFeaturizerSharedVocab] = React.useState(false);
   const [countVectorsFeaturizerTextSize, setCountVectorsFeaturizerTextSize] = React.useState(1000);
+  const [countVectorsFeaturizerTextSizeError, setCountVectorsFeaturizerTextSizeError] = React.useState(false);
   const [countVectorsFeaturizerResponseSize, setCountVectorsFeaturizerResponseSize] = React.useState(1000);
+  const [countVectorsFeaturizerResponseSizeError, setCountVectorsFeaturizerResponseSizeError] = React.useState(false);
   const [countVectorsFeaturizerActionTextSize, setCountVectorsFeaturizerActionTextSize] = React.useState(1000);
+  const [countVectorsFeaturizerActionTextSizeError, setCountVectorsFeaturizerActionTextSizeError] = React.useState(false);
 
   // select options state for LexicalSyntacticFeaturizer
   const [lexicalSyntacticFeaturizerBefore, setLexicalSyntacticFeaturizerBefore] = React.useState({
@@ -241,23 +270,42 @@ export default function DashboardApp() {
 
   const [lexicalSyntacticFeaturizerAfterCheckedValues, setLexicalSyntacticFeaturizerAfterCheckedValues] = React.useState(["low", "upper", "title"]);
 
+    // select options state for GensimFeaturizer
+    const [gensimFeaturizerCacheDir, setGensimFeaturizerCacheDir] = React.useState("path/to/cache");
+    const [gensimFeaturizerHideCacheDir, setGensimFeaturizerHideCacheDir] = React.useState(false);
+    const [gensimFeaturizerCacheDirError, setGensimFeaturizerCacheDirError] = React.useState(false);
+    const [gensimFeaturizerFile, setGensimFeaturizerFile] = React.useState("filename");
+    const [gensimFeaturizerHideFile, setGensimFeaturizerHideFile] = React.useState(false);
+    const [gensimFeaturizerFileError, setGensimFeaturizerFileError] = React.useState(false);
+
   // select options state for LogisticRegressionClassifier
   const [logisticRegressionClassifierMaxIter, setLogisticRegressionClassifierMaxIter] = React.useState(1);
+  const [logisticRegressionClassifierMaxIterError, setLogisticRegressionClassifierMaxIterError] = React.useState(false);
   const [logisticRegressionClassifierSolver, setLogisticRegressionClassifierSolver] = React.useState("lbfgs");
   const [logisticRegressionClassifierTol, setLogisticRegressionClassifierTol] = React.useState(0.0001);
+  const [logisticRegressionClassifierTolError, setLogisticRegressionClassifierTolError] = React.useState(false);
   const [logisticRegressionClassifierRandomState, setLogisticRegressionClassifierRandomState] = React.useState(1);
+  const [logisticRegressionClassifierRandomStateError, setLogisticRegressionClassifierRandomStateError] = React.useState(false);
   const [logisticRegressionClassifierHideTextField, setLogisticRegressionClassifierHideTextField] = React.useState(false);
 
   // select options state for SklearnIntentClassifier
   const [sklearnIntentClassifierC1, setSklearnIntentClassifierC1] = React.useState(1);
+  const [sklearnIntentClassifierC1Error, setSklearnIntentClassifierC1Error] = React.useState(false);
   const [sklearnIntentClassifierC2, setSklearnIntentClassifierC2] = React.useState(2);
+  const [sklearnIntentClassifierC2Error, setSklearnIntentClassifierC2Error] = React.useState(false);
   const [sklearnIntentClassifierC3, setSklearnIntentClassifierC3] = React.useState(5);
+  const [sklearnIntentClassifierC3Error, setSklearnIntentClassifierC3Error] = React.useState(false);
   const [sklearnIntentClassifierC4, setSklearnIntentClassifierC4] = React.useState(10);
+  const [sklearnIntentClassifierC4Error, setSklearnIntentClassifierC4Error] = React.useState(false);
   const [sklearnIntentClassifierC5, setSklearnIntentClassifierC5] = React.useState(20);
+  const [sklearnIntentClassifierC5Error, setSklearnIntentClassifierC5Error] = React.useState(false);
   const [sklearnIntentClassifierC6, setSklearnIntentClassifierC6] = React.useState(100);
+  const [sklearnIntentClassifierC6Error, setSklearnIntentClassifierC6Error] = React.useState(false);
   const [sklearnIntentClassifierKernels, setSklearnIntentClassifierKernels] = React.useState("linear");
   const [sklearnIntentClassifierGamma, setSklearnIntentClassifierGamma] = React.useState(0.1);
+  const [sklearnIntentClassifierGammaError, setSklearnIntentClassifierGammaError] = React.useState(false);
   const [sklearnIntentClassifierMaxFolds, setSklearnIntentClassifierMaxFolds] = React.useState(5);
+  const [sklearnIntentClassifierMaxFoldsError, setSklearnIntentClassifierMaxFoldsError] = React.useState(false);
   const [sklearnIntentClassifierScoringFunc, setSklearnIntentClassifierScoringFunc] = React.useState("f1_weighted");
 
   // select options state for KeywordIntentClassifier
@@ -265,11 +313,13 @@ export default function DashboardApp() {
 
   // select options state for DIETClassifier
   const [DIETClassifierEpochs, setDIETClassifierEpochs] = React.useState(300);
+  const [DIETClassifierEpochsError, setDIETClassifierEpochsError] = React.useState(false);
   const [DIETClassifierEntityRecognition, setDIETClassifierEntityRecognition] = React.useState(true);
   const [DIETClassifierIntentClassification, setDIETClassifierIntentClassification] = React.useState(true);
 
   // select options state for FallbackClassifier
   const [fallbackClassifierThreshold, setFallbackClassifierThreshold] = React.useState(0.7);
+  const [fallbackClassifierThresholdError, setFallbackClassifierThresholdError] = React.useState(false);
 
   // select options state for SpacyEntityExtractor
   const [spacyEntityExtractorDimensions, setSpacyEntityExtractorDimensions] = React.useState({
@@ -354,8 +404,11 @@ export default function DashboardApp() {
   const [CRFEntityExtractorAfterCheckedValues, setCRFEntityExtractorAfterCheckedValues] = React.useState(["low", "upper", "title"]);
 
   const [CRFEntityExtractorMaxIterations, setCRFEntityExtractorMaxIterations] = React.useState(50);
+  const [CRFEntityExtractorMaxIterationsError, setCRFEntityExtractorMaxIterationsError] = React.useState(false);
   const [CRFEntityExtractorL1, setCRFEntityExtractorL1] = React.useState(0.1);
+  const [CRFEntityExtractorL1Error, setCRFEntityExtractorL1Error] = React.useState(false);
   const [CRFEntityExtractorL2, setCRFEntityExtractorL2] = React.useState(0.1);
+  const [CRFEntityExtractorL2Error, setCRFEntityExtractorL2Error] = React.useState(false);
   const [CRFEntityExtractorSplitAddress, setCRFEntityExtractorSplitAddress] = React.useState(false);
   const [CRFEntityExtractorSplitEmail, setCRFEntityExtractorSplitEmail] = React.useState(true);
 
@@ -379,11 +432,64 @@ export default function DashboardApp() {
   const [regexEntityExtractorRegexes, setRegexEntityExtractorRegexes] = React.useState(true);
   const [regexEntityExtractorWordBoundaries, setRegexEntityExtractorWordBoundaries] = React.useState(true);
 
+  // POLICIES
+  // used to check whether to display a component or not
+  const [policyValues, setPolicyValues] = React.useState({
+    tedP: false,
+    unexpectedP: true,
+    memoizationP: true,
+    augmentedMP: false,
+    ruleP: false
+  });
+
+  // POLICIES - State
+  // select options state for TEDPolicy
+  const [TEDPolicyEpochs, setTEDPolicyEpochs] = React.useState(300);
+  const [TEDPolicyEpochsError, setTEDPolicyEpochsError] = React.useState(false);
+  const [TEDPolicyMaxHistory, setTEDPolicyMaxHistory] = React.useState(8);
+  const [TEDPolicyMaxHistoryError, setTEDPolicyMaxHistoryError] = React.useState(false);
+  const [TEDPolicySplitByComma, setTEDPolicySplitByComma] = React.useState(true);
+  const [TEDPolicyConstrainSimilarities, setTEDPolicyConstrainSimilarities] = React.useState(true);
+
+  // select options state for UnexpecTEDIntentPolicy
+  const [unexpecTEDIntentPolicyEpochs, setUnexpecTEDIntentPolicyEpochs] = React.useState(200);
+  const [unexpecTEDIntentPolicyEpochsError, setUnexpecTEDIntentPolicyEpochsError] = React.useState(false);
+  const [unexpecTEDIntentPolicyMaxHistory, setUnexpecTEDIntentPolicyMaxHistory] = React.useState(8);
+  const [unexpecTEDIntentPolicyMaxHistoryError, setUnexpecTEDIntentPolicyMaxHistoryError] = React.useState(false);
+
+  // select options state for MemoizationPolicy
+  const [memoizationPolicyMaxHistory, setMemoizationPolicyMaxHistory] = React.useState(3);
+  const [memoizationPolicyMaxHistoryError, setMemoizationPolicyMaxHistoryError] = React.useState(false);
+
+  // select options state for AugmentedMemoizationPolicy
+  const [augmentedMemoizationPolicyMaxHistory, setAugmentedMemoizationPolicyMaxHistory] = React.useState(3);
+  const [augmentedMemoizationPolicyMaxHistoryError, setAugmentedMemoizationPolicyMaxHistoryError] = React.useState(false);
+
+  // select options state for RulePolicy
+  const [rulePolicyThreshold, setRulePolicyThreshold] = React.useState(0.3);
+  const [rulePolicyThresholdError, setRulePolicyThresholdError] = React.useState(false);
+  const [rulePolicyEnablePrediction, setRulePolicyEnablePrediction] = React.useState(true);
+  const [rulePolicyRestrictRules, setRulePolicyRestrictRules] = React.useState(true);
+  const [rulePolicyCheckContradictions, setRulePolicyCheckContradictions] = React.useState(true);
+
+  // array to save trained models
+  const [trainModels, setTrainModels] = React.useState([]);
+
+  // PIPELINE - Change
   // used to handle change on whether to display a component or not
 
   // const handleLanguageModelChange = (event) => {
   //   setLanguageModelValue(event.target.value);
   // };
+
+  // for loading icon when training
+  const [loading, setLoading] = React.useState(false);
+  const [openTraingModelSuccessAlert, setOpenTraingModelSuccessAlert] = React.useState(false);
+  const [openTraingModelFailAlert, setOpenTraingModelFailAlert] = React.useState(false);
+  const [openSpacyTokenizerAlert, setOpenSpacyTokenizerAlert] = React.useState(false);
+  const [openSpacyFeaturizerAlert, setOpenSpacyFeaturizerAlert] = React.useState(false);
+  const [openSpacyEntityExtractorAlert, setOpenSpacyEntityExtractorAlert] = React.useState(false);
+  const [openSpacyFeaturizerTokenizerAlert, setOpenSpacyFeaturizerTokenizerAlert] = React.useState(false);
 
   const handleLanguageModelChange = (event) => {
     setLanguageModelValues({
@@ -486,6 +592,9 @@ export default function DashboardApp() {
     setSpacyTokenizerTokenPattern(event.target.value);
   }
 
+  // handle chnage for SEETMTokenizers
+  // NEED TO BE IMPLEMENTED
+
   // FEATURIZERS - handleChange
   // handle chnage for MitieFeaturizer
   const handleMitieFeaturizerPoolingChange = (event) => {
@@ -525,15 +634,23 @@ export default function DashboardApp() {
   }
 
   const handleRegexFeaturizerNumOfPatternsChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setRegexFeaturizerNumOfPatterns(parseInt(event.target.value, 10));
 
-    if (value < regexFeaturizerMinNumOfPatterns) value = regexFeaturizerMinNumOfPatterns;
-
-    setRegexFeaturizerNumOfPatterns(value);
+    if(featurizerValues.regexF === true && regexFeaturizerHidePatternsTextField === true && event.target.value < 1) {
+      setRegexFeaturizerNumOfPatternsError(true);
+    } else if(featurizerValues.regexF === true && regexFeaturizerHidePatternsTextField === true && event.target.value > 0) {
+      setRegexFeaturizerNumOfPatternsError(false);
+    } else {
+      setRegexFeaturizerNumOfPatternsError(false);
+    }
   }
 
   const handleRegexFeaturizerHidePatternsTextFieldChange = (event) => {
     setRegexFeaturizerHidePatternsTextField(event.target.checked);
+
+    if(event.target.checked === false){
+      setRegexFeaturizerNumOfPatternsError(false);
+    }
   }
 
   // handle chnage for CountVectorsFeaturizer
@@ -542,19 +659,23 @@ export default function DashboardApp() {
   }
 
   const handleCountVectorsFeaturizerMinNGramChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCountVectorsFeaturizerMinNGram(parseInt(event.target.value, 10));
 
-    if (value < countVectorsFeaturizerMinNGramValue) value = countVectorsFeaturizerMinNGramValue;
-
-    setCountVectorsFeaturizerMinNGram(value);
+    if(featurizerValues.countVectorsF === true && event.target.value < countVectorsFeaturizerMinNGramValue) {
+      setCountVectorsFeaturizerMinNGramError(true);
+    } else {
+      setCountVectorsFeaturizerMinNGramError(false);
+    }
   }
 
   const handleCountVectorsFeaturizerMaxNGramChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCountVectorsFeaturizerMaxNGram(parseInt(event.target.value, 10));
 
-    if (value < countVectorsFeaturizerMaxNGramValue) value = countVectorsFeaturizerMaxNGramValue;
-
-    setCountVectorsFeaturizerMaxNGram(value);
+    if(featurizerValues.countVectorsF === true && event.target.value < countVectorsFeaturizerMaxNGramValue) {
+      setCountVectorsFeaturizerMaxNGramError(true);
+    } else {
+      setCountVectorsFeaturizerMaxNGramError(false);
+    }
   }
 
   const handleCountVectorsFeaturizerOOVTokenChange = (event) => {
@@ -566,27 +687,33 @@ export default function DashboardApp() {
   }
 
   const handleCountVectorsFeaturizerTextSizeChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCountVectorsFeaturizerTextSize(parseInt(event.target.value, 10));
 
-    if (value < countVectorsFeaturizerMinTextSize) value = countVectorsFeaturizerMinTextSize;
-
-    setCountVectorsFeaturizerTextSize(value);
+    if(featurizerValues.countVectorsF === true && event.target.value < countVectorsFeaturizerMinTextSize) {
+      setCountVectorsFeaturizerTextSizeError(true);
+    } else {
+      setCountVectorsFeaturizerTextSizeError(false);
+    }
   }
 
   const handleCountVectorsFeaturizerResponseSizeChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCountVectorsFeaturizerResponseSize(parseInt(event.target.value, 10));
 
-    if (value < countVectorsFeaturizerMinResponseSize) value = countVectorsFeaturizerMinResponseSize;
-
-    setCountVectorsFeaturizerResponseSize(value);
+    if(featurizerValues.countVectorsF === true && event.target.value < countVectorsFeaturizerMinResponseSize) {
+      setCountVectorsFeaturizerResponseSizeError(true);
+    } else {
+      setCountVectorsFeaturizerResponseSizeError(false);
+    }
   }
 
   const handleCountVectorsFeaturizerActionTextSizeChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCountVectorsFeaturizerActionTextSize(parseInt(event.target.value, 10));
 
-    if (value < countVectorsFeaturizerMinActionTextSize) value = countVectorsFeaturizerMinActionTextSize;
-
-    setCountVectorsFeaturizerActionTextSize(value);
+    if(featurizerValues.countVectorsF === true && event.target.value < countVectorsFeaturizerMinActionTextSize) {
+      setCountVectorsFeaturizerActionTextSizeError(true);
+    } else {
+      setCountVectorsFeaturizerActionTextSizeError(false);
+    }
   }
 
   // handle chnage for LexicalSyntacticFeaturizer
@@ -632,13 +759,56 @@ export default function DashboardApp() {
     setLexicalSyntacticFeaturizerAfterCheckedValues(newArray);
   };
 
+  // handle chnage for GensimFeaturizer
+  const handleGensimFeaturizerCacheDirChange = (event) => {
+    setGensimFeaturizerCacheDir(event.target.value);
+
+    if((featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === true) && (event.target.value === '' || event.target.value === null)) {
+      setGensimFeaturizerCacheDirError(true);
+    } else if((featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === true) && (event.target.value !== '' || event.target.value !== null)) {
+      setGensimFeaturizerCacheDirError(false);
+    } else {
+      setGensimFeaturizerCacheDirError(false);
+    }
+  }
+
+  const handleGensimFeaturizerHideCacheDirChange = (event) => {
+    setGensimFeaturizerHideCacheDir(event.target.checked);
+
+    if(event.target.checked === false){
+      setGensimFeaturizerCacheDirError(false);
+    }
+  }
+
+  const handleGensimFeaturizerFileChange = (event) => {
+    setGensimFeaturizerFile(event.target.value);
+
+    if((featurizerValues.gensimF === true && gensimFeaturizerHideFile === true) && (event.target.value === '' || event.target.value === null)) {
+      setGensimFeaturizerFileError(true);
+    } else if((featurizerValues.gensimF === true && gensimFeaturizerHideFile === true) && (event.target.value !== '' || event.target.value !== null)) {
+      setGensimFeaturizerFileError(false);
+    } else {
+      setGensimFeaturizerFileError(false);
+    }
+  }
+
+  const handleGensimFeaturizerHideFileChange = (event) => {
+    setGensimFeaturizerHideFile(event.target.checked);
+
+    if(event.target.checked === false){
+      setGensimFeaturizerFileError(false);
+    }
+  }
+
   // handle chnage for LogisticRegressionClassifier
   const handleLogisticRegressionClassifierMaxIterChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setLogisticRegressionClassifierMaxIter(parseInt(event.target.value, 10));
 
-    if (value < logisticRegressionClassifierMaxIterValue) value = logisticRegressionClassifierMaxIterValue;
-
-    setLogisticRegressionClassifierMaxIter(value);
+    if(classifierValues.logisticC === true && event.target.value < logisticRegressionClassifierMaxIterValue) {
+      setLogisticRegressionClassifierMaxIterError(true);
+    } else {
+      setLogisticRegressionClassifierMaxIterError(false);
+    }
   }
 
   const handleLogisticRegressionClassifierSolverChange = (event) => {
@@ -646,68 +816,94 @@ export default function DashboardApp() {
   }
 
   const handleLogisticRegressionClassifierTolChange = (event) => {
-    setLogisticRegressionClassifierTol(event.target.value);
+    setLogisticRegressionClassifierTol(parseFloat(event.target.value));
+
+    if((classifierValues.logisticC === true) && (event.target.value > logisticRegressionClassifierMinTol) && (event.target.value < 1)) {
+      setLogisticRegressionClassifierTolError(false);
+    } else {
+      setLogisticRegressionClassifierTolError(true);
+    }
   }
 
   const handleLogisticRegressionClassifierRandomStateChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setLogisticRegressionClassifierRandomState(parseInt(event.target.value, 10));
 
-    if (value < logisticRegressionClassifierMinRandomState) value = logisticRegressionClassifierMinRandomState;
-
-    setLogisticRegressionClassifierRandomState(value);
+    if(classifierValues.logisticC === true && logisticRegressionClassifierHideTextField === true && event.target.value < 1) {
+      setLogisticRegressionClassifierRandomStateError(true);
+    } else if(classifierValues.logisticC === true && logisticRegressionClassifierHideTextField === true && event.target.value > 0) {
+      setLogisticRegressionClassifierRandomStateError(false);
+    } else {
+      setLogisticRegressionClassifierRandomStateError(false);
+    }    
   }
 
   const handleLogisticRegressionClassifierHideTextFieldChange = (event) => {
     setLogisticRegressionClassifierHideTextField(event.target.checked);
+
+    if(event.target.checked === false){
+      setLogisticRegressionClassifierRandomStateError(false);
+    }
   }
 
   // handle chnage for SklearnIntentClassifier
   const handleSklearnIntentClassifierC1Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC1(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC1(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC1Error(true);
+    } else {
+      setSklearnIntentClassifierC1Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierC2Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC2(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC2(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC2Error(true);
+    } else {
+      setSklearnIntentClassifierC2Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierC3Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC3(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC3(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC3Error(true);
+    } else {
+      setSklearnIntentClassifierC3Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierC4Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC4(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC4(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC4Error(true);
+    } else {
+      setSklearnIntentClassifierC4Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierC5Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC5(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC5(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC5Error(true);
+    } else {
+      setSklearnIntentClassifierC5Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierC6Change = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierC6(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinC) value = sklearnIntentClassifierMinC;
-
-    setSklearnIntentClassifierC6(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinC) {
+      setSklearnIntentClassifierC6Error(true);
+    } else {
+      setSklearnIntentClassifierC6Error(false);
+    }
   }
 
   const handleSklearnIntentClassifierKernelsChange = (event) => {
@@ -715,15 +911,23 @@ export default function DashboardApp() {
   }
 
   const handleSklearnIntentClassifierGammaChange = (event) => {
-    setSklearnIntentClassifierGamma(event.target.value);
+    setSklearnIntentClassifierGamma(parseFloat(event.target.value));
+
+    if((classifierValues.skLearnC === true) && (event.target.value > 0) && (event.target.value < 1)) {
+      setSklearnIntentClassifierGammaError(false);
+    } else {
+      setSklearnIntentClassifierGammaError(true);
+    }
   }
 
   const handleSklearnIntentClassifierMaxFoldsChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setSklearnIntentClassifierMaxFolds(parseInt(event.target.value, 10));
 
-    if (value < sklearnIntentClassifierMinMaxFolds) value = sklearnIntentClassifierMinMaxFolds;
-
-    setSklearnIntentClassifierMaxFolds(value);
+    if(classifierValues.skLearnC === true && event.target.value < sklearnIntentClassifierMinMaxFolds) {
+      setSklearnIntentClassifierMaxFoldsError(true);
+    } else {
+      setSklearnIntentClassifierMaxFoldsError(false);
+    }
   }
 
   const handleSklearnIntentClassifierScoringFuncChange = (event) => {
@@ -737,11 +941,13 @@ export default function DashboardApp() {
 
   // handle chnage for DIETClassifier
   const handleDIETClassifierEpochsChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setDIETClassifierEpochs(parseInt(event.target.value, 10));
 
-    if (value < DIETClassifierMinEpochs) value = DIETClassifierMinEpochs;
-
-    setDIETClassifierEpochs(value);
+    if(classifierValues.dietC === true && event.target.value < DIETClassifierMinEpochs) {
+      setDIETClassifierEpochsError(true);
+    } else {
+      setDIETClassifierEpochsError(false);
+    }
   }
 
   const handleDIETClassifierEntityRecognitionChange = (event) => {
@@ -754,12 +960,13 @@ export default function DashboardApp() {
 
   // handle chnage for FallbackClassifier
   const handleFallbackClassifierThresholdChange = (event) => {
-    let value = parseFloat(event.target.value);
+    setFallbackClassifierThreshold(parseFloat(event.target.value));
 
-    if (value > fallbackClassifierMaxThreshold) value = fallbackClassifierMaxThreshold;
-    if (value < fallbackClassifierMinThreshold) value = fallbackClassifierMinThreshold;
-
-    setFallbackClassifierThreshold(value);
+    if((classifierValues.fallbackC === true) && (event.target.value > 0) && (event.target.value < 1)) {
+      setFallbackClassifierThresholdError(false);
+    } else {
+      setFallbackClassifierThresholdError(true);
+    }
   }
 
   // handle chnage for SpacyEntityExtractor
@@ -825,29 +1032,33 @@ export default function DashboardApp() {
   };
 
   const handleCRFEntityExtractorMaxIterationsChange = (event) => {
-    let value = parseInt(event.target.value, 10);
+    setCRFEntityExtractorMaxIterations(parseInt(event.target.value, 10));
 
-    if (value < CRFEntityExtractorMinMaxIterations) value = CRFEntityExtractorMinMaxIterations;
-
-    setCRFEntityExtractorMaxIterations(value);
+    if(extractorValues.crfE === true && event.target.value < CRFEntityExtractorMinMaxIterations) {
+      setCRFEntityExtractorMaxIterationsError(true);
+    } else {
+      setCRFEntityExtractorMaxIterationsError(false);
+    }
   }
 
   const handleCRFEntityExtractorL1Change = (event) => {
-    let value = parseFloat(event.target.value);
+    setCRFEntityExtractorL1(parseFloat(event.target.value));
 
-    if (value > CRFEntityExtractorMaxL1) value = CRFEntityExtractorMaxL1;
-    if (value < CRFEntityExtractorMinL1) value = CRFEntityExtractorMinL1;
-
-    setCRFEntityExtractorL1(value);
+    if((extractorValues.crfE === true) && (event.target.value > 0) && (event.target.value < 1)) {
+      setCRFEntityExtractorL1Error(false);
+    } else {
+      setCRFEntityExtractorL1Error(true);
+    }
   }
 
   const handleCRFEntityExtractorL2Change = (event) => {
-    let value = parseFloat(event.target.value);
+    setCRFEntityExtractorL2(parseFloat(event.target.value));
 
-    if (value > CRFEntityExtractorMaxL2) value = CRFEntityExtractorMaxL2;
-    if (value < CRFEntityExtractorMinL2) value = CRFEntityExtractorMinL2;
-
-    setCRFEntityExtractorL2(value);
+    if((extractorValues.crfE === true) && (event.target.value > 0) && (event.target.value < 1)) {
+      setCRFEntityExtractorL2Error(false);
+    } else {
+      setCRFEntityExtractorL2Error(true);
+    }
   }
 
   const handleCRFEntityExtractorSplitAddressChange = (event) => {
@@ -908,10 +1119,129 @@ export default function DashboardApp() {
   }
 
 
+  // POLICIES
+  // used to handle change on whether to display a component or not
+  const handlePolicyChange = (event) => {
+    setPolicyValues({
+      ...policyValues,
+      [event.target.name]: event.target.checked,
+    });
+  };
+
+  // POLICIES - handleChange
+  // handle chnage for TEDPolicy
+  const handleTEDPolicyEpochsChange = (event) => {
+    setTEDPolicyEpochs(parseInt(event.target.value , 10));
+
+    if(policyValues.tedP === true && event.target.value < 1 ) {
+      setTEDPolicyEpochsError(true);
+    } else {
+      setTEDPolicyEpochsError(false);
+    }
+  }
+
+  const handleTEDPolicyMaxHistoryChange = (event) => {
+    setTEDPolicyMaxHistory(parseInt(event.target.value, 10));
+
+    if(policyValues.tedP === true && event.target.value < 1 ) {
+      setTEDPolicyMaxHistoryError(true);
+    } else {
+      setTEDPolicyMaxHistoryError(false);
+    }
+  }
+
+  const handleTEDPolicySplitByCommaChange = (event) => {
+    setTEDPolicySplitByComma(event.target.value);
+  }
+
+  const handleTEDPolicyConstrainSimilaritiesChange = (event) => {
+    setTEDPolicyConstrainSimilarities(event.target.value);
+  }
+
+  // handle chnage for UnexpecTEDIntentPolicy
+  const handleUnexpecTEDIntentPolicyEpochsChange = (event) => {
+    setUnexpecTEDIntentPolicyEpochs(parseInt(event.target.value, 10));
+
+    if(policyValues.unexpectedP === true && event.target.value < 1 ) {
+      setUnexpecTEDIntentPolicyEpochsError(true);
+    } else {
+      setUnexpecTEDIntentPolicyEpochsError(false);
+    }
+  }
+
+  const handleUnexpecTEDIntentPolicyMaxHistoryChange = (event) => {
+    setUnexpecTEDIntentPolicyMaxHistory(parseInt(event.target.value, 10));
+
+    if(policyValues.unexpectedP === true && event.target.value < 1 ) {
+      setUnexpecTEDIntentPolicyMaxHistoryError(true);
+    } else {
+      setUnexpecTEDIntentPolicyMaxHistoryError(false);
+    }
+  }
+
+  // handle chnage for MemoizationPolicy
+  const handleMemoizationPolicyMaxHistoryChange = (event) => {
+    setMemoizationPolicyMaxHistory(parseInt(event.target.value, 10));
+
+    if(policyValues.memoizationP === true && event.target.value < 1 ) {
+      setMemoizationPolicyMaxHistoryError(true);
+    } else {
+      setMemoizationPolicyMaxHistoryError(false);
+    }
+  }
+
+  // handle chnage for AugmentedMemoizationPolicy
+  const handleAugmentedMemoizationPolicyMaxHistoryChange = (event) => {
+    setAugmentedMemoizationPolicyMaxHistory(parseInt(event.target.value, 10));
+
+    if(policyValues.augmentedMP === true && event.target.value < 1 ) {
+      setAugmentedMemoizationPolicyMaxHistoryError(true);
+    } else {
+      setAugmentedMemoizationPolicyMaxHistoryError(false);
+    }
+  }
+
+  // handle chnage for RulePolicy
+  const handleRulePolicyThresholdChange = (event) => {
+    setRulePolicyThreshold(parseFloat(event.target.value));
+
+    if((policyValues.ruleP === true && event.target.value < 0.1) || (policyValues.ruleP === true && event.target.value > 1.0) ) {
+      setRulePolicyThresholdError(true);
+    } else {
+      setRulePolicyThresholdError(false);
+    }
+  }
+
+  const handleRulePolicyEnablePredictionChange = (event) => {
+    setRulePolicyEnablePrediction(event.target.value);
+  }
+
+  const handleRulePolicyRestrictRulesChange = (event) => {
+    setRulePolicyRestrictRules(event.target.value);
+  }
+
+  const handleRulePolicyCheckContradictionsChange = (event) => {
+    setRulePolicyCheckContradictions(event.target.value);
+  }
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setOpenTraingModelSuccessAlert(false);
+    setOpenTraingModelFailAlert(false);
+    setOpenSpacyTokenizerAlert(false);
+    setOpenSpacyFeaturizerAlert(false);
+    setOpenSpacyEntityExtractorAlert(false);
+    setOpenSpacyFeaturizerTokenizerAlert(false);
+  };
+
+  // PIPELINE
   const { mitieLM, spacyLM } = languageModelValues;
 
-  const { mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF } = featurizerValues;
-  const featurizerError = [mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF].filter((v) => v).length === 0;
+  const { mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF, gensimF } = featurizerValues;
+  const featurizerError = [mitieF, spacyF, convertF, languageModelF, regexF, countVectorsF, lexicalSyntacticF, gensimF].filter((v) => v).length === 0;
   
   const { mitieC, logisticC, skLearnC, keywordC, dietC, fallbackC } = classifierValues;
   const classifierError = [mitieC, logisticC, skLearnC, keywordC, dietC, fallbackC].filter((v) => v).length === 0;
@@ -946,6 +1276,10 @@ export default function DashboardApp() {
   // for DucklingEntityExtractor
   const { ducklingEntityExtractorTime, ducklingEntityExtractorNumber, ducklingEntityExtractorMoney, ducklingEntityExtractorDistance } = ducklingEntityExtractorDimensions;
   const ducklingEntityExtractorDimensionsValuesError = [ducklingEntityExtractorTime, ducklingEntityExtractorNumber, ducklingEntityExtractorMoney, ducklingEntityExtractorDistance].filter((v) => v).length === 0;
+
+  // POLICIES
+  const { tedP, unexpectedP, memoizationP, augmentedMP, ruleP } = policyValues;
+  const policyError = [tedP, unexpectedP, memoizationP, augmentedMP, ruleP].filter((v) => v).length === 0;
 
 
   // arrays for languageModelFeaturizer models
@@ -1034,6 +1368,9 @@ export default function DashboardApp() {
           "intent_split_symbol": spacyTokenizerSplitSymbol,
           "token_pattern": spacyTokenizerTokenPattern
         } : null),
+        (tokenizerValue === "SEETMTokenizer" ? {
+          "name": "SEETMTokenizer"
+        } : null),
         // rendering the featurizer components
         (featurizerValues.mitieF === true ? {
           "name": "MitieFeaturizer",
@@ -1084,6 +1421,26 @@ export default function DashboardApp() {
             lexicalSyntacticFeaturizerTokenCheckedValues,
             lexicalSyntacticFeaturizerAfterCheckedValues,
           ]
+        } : null),
+        (featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === true && gensimFeaturizerHideFile === true ? {
+          "name": "rasa_nlu_examples.featurizers.dense.GensimFeaturizer",
+          "cache_dir": gensimFeaturizerCacheDir,
+          "file": gensimFeaturizerFile
+        } : null),
+        (featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === true && gensimFeaturizerHideFile === false ? {
+          "name": "rasa_nlu_examples.featurizers.dense.GensimFeaturizer",
+          "cache_dir": gensimFeaturizerCacheDir,
+          "file": gensimFeaturizerFileDefaultValue
+        } : null),
+        (featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === false && gensimFeaturizerHideFile === true ? {
+          "name": "rasa_nlu_examples.featurizers.dense.GensimFeaturizer",
+          "cache_dir": gensimFeaturizerCacheDirDefaultValue,
+          "file": gensimFeaturizerFile
+        } : null),
+        (featurizerValues.gensimF === true && gensimFeaturizerHideCacheDir === false && gensimFeaturizerHideFile === false ? {
+          "name": "rasa_nlu_examples.featurizers.dense.GensimFeaturizer",
+          "cache_dir": gensimFeaturizerCacheDirDefaultValue,
+          "file": gensimFeaturizerFileDefaultValue
         } : null),
         (classifierValues.mitieC === true ? {
           "name": "MitieIntentClassifier"
@@ -1166,30 +1523,177 @@ export default function DashboardApp() {
     }
   }
 
-  const trainModel = async () => {
-    await generateJSObjectPipeline();
-    const JSObjectPipelineNullRemoved = JSObjectPipeline.pipeline.filter(x => x !== null);
-    console.log("JSON");
-    console.log(JSON.stringify(JSObjectPipelineNullRemoved));
-    console.log("YAML");
-    // console.log(YAML.stringify(JSON.stringify(JSObjectPipeline)));
-    console.log(yaml.dump(JSObjectPipelineNullRemoved));
-    // const data = YAML.stringify(JSON.stringify(JSObjectPipeline));
-    // fs.writeFile('YAML-PIPELINE.yaml', data);
+  const generateJSObjectPolicies = () => {
+    JSObjectPolicies = {
+      "policies": [
+        (policyValues.tedP === true ? {
+          "name": "TEDPolicy",
+          "epochs": TEDPolicyEpochs,
+          "max_history": TEDPolicyMaxHistory,
+          "split_entities_by_comma": TEDPolicySplitByComma,
+          "constrain_similarities": TEDPolicyConstrainSimilarities
+        } : null),
+        (policyValues.unexpectedP === true ? {
+          "name": "UnexpecTEDIntentPolicy",
+          "epochs": unexpecTEDIntentPolicyEpochs,
+          "max_history": unexpecTEDIntentPolicyMaxHistory
+        } : null),
+        (policyValues.memoizationP === true ? {
+          "name": "MemoizationPolicy",
+          "max_history": memoizationPolicyMaxHistory
+        } : null),
+        (policyValues.augmentedMP === true ? {
+          "name": "AugmentedMemoizationPolicy",
+          "max_history": augmentedMemoizationPolicyMaxHistory
+        } : null),
+        (policyValues.ruleP === true ? {
+          "name": "RulePolicy",
+          "core_fallback_threshold": rulePolicyThreshold,
+          "enable_fallback_prediction": rulePolicyEnablePrediction,
+          "restrict_rules": rulePolicyRestrictRules,
+          "check_for_contradictions": rulePolicyCheckContradictions
+        } : null),
+      ]
+    }
   }
 
+  let combinedJSON;
+
+  const trainModel = async e => {
+    e.preventDefault();
+
+    if(tokenizerValue === "SpacyTokenizer" && spacyLM === false) {
+      setOpenSpacyTokenizerAlert(true);
+      return;
+    } 
+    
+    if(spacyF === true && spacyLM === false) {
+      setOpenSpacyFeaturizerAlert(true);
+      return;
+    } 
+    
+    if(spacyE === true && spacyLM === false) {
+      setOpenSpacyEntityExtractorAlert(true);
+      return;
+    }
+
+    if(spacyF === true && tokenizerValue !== "SpacyTokenizer") {
+      setOpenSpacyFeaturizerTokenizerAlert(true);
+      return;
+    }
+
+    if (
+      regexFeaturizerNumOfPatternsError === false &&
+      countVectorsFeaturizerMinNGramError === false &&
+      countVectorsFeaturizerMaxNGramError === false &&
+      countVectorsFeaturizerTextSizeError === false &&
+      countVectorsFeaturizerResponseSizeError === false &&
+      countVectorsFeaturizerActionTextSizeError === false &&
+      gensimFeaturizerCacheDirError === false &&
+      gensimFeaturizerFileError === false &&
+      logisticRegressionClassifierMaxIterError === false &&
+      logisticRegressionClassifierTolError === false &&
+      logisticRegressionClassifierRandomStateError === false &&
+      sklearnIntentClassifierC1Error === false &&
+      sklearnIntentClassifierC2Error === false &&
+      sklearnIntentClassifierC3Error === false &&
+      sklearnIntentClassifierC4Error === false &&
+      sklearnIntentClassifierC5Error === false &&
+      sklearnIntentClassifierC6Error === false &&
+      sklearnIntentClassifierGammaError === false &&
+      sklearnIntentClassifierMaxFoldsError === false &&
+      DIETClassifierEpochsError === false &&
+      fallbackClassifierThresholdError === false &&
+      CRFEntityExtractorMaxIterationsError === false &&
+      CRFEntityExtractorL1Error === false &&
+      CRFEntityExtractorL2Error === false &&
+      TEDPolicyEpochsError === false &&
+      TEDPolicyMaxHistoryError === false &&
+      unexpecTEDIntentPolicyEpochsError === false &&
+      unexpecTEDIntentPolicyMaxHistoryError === false &&
+      memoizationPolicyMaxHistoryError === false &&
+      augmentedMemoizationPolicyMaxHistoryError === false &&
+      rulePolicyThresholdError === false
+    ) {
+      await generateJSObjectPipeline();
+      const JSObjectPipelineNullRemoved = JSObjectPipeline.pipeline.filter(x => x !== null);
+      console.log("JSON");
+      console.log(JSON.stringify(JSObjectPipelineNullRemoved));
+      console.log("YAML");
+      console.log(yaml.dump(JSObjectPipelineNullRemoved));
+
+      await generateJSObjectPolicies();
+      const JSObjectPoliciesNullRemoved = JSObjectPolicies.policies.filter(x => x !== null);
+      console.log("JSON");
+      console.log(JSON.stringify(JSObjectPoliciesNullRemoved));
+      console.log("YAML");
+      console.log(yaml.dump(JSObjectPoliciesNullRemoved));
+
+      combinedJSON = {
+        "language": "en",
+        "pipeline": JSObjectPipelineNullRemoved,
+        "policies": JSObjectPoliciesNullRemoved
+      }
+
+      setLoading(true);
+  
+      axios.post('http://127.0.0.1:3001/config/update', combinedJSON, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then((res) => {
+        setLoading(false);
+        setOpenTraingModelSuccessAlert(true);
+        console.log(res)
+        console.log(res.data["Model List"]);
+      }).catch(err => {
+        setLoading(false);
+        setOpenTraingModelFailAlert(true);
+        console.log("Caught the error")
+        console.log(err)
+        console.log("Caught the error - Stringified it")
+        console.log(JSON.stringify(err))
+        console.log("Response")
+        console.log(JSON.stringify(err.response))
+        console.log("Request")
+        console.log(JSON.stringify(err.request))
+      });
+ 
+      console.log("Form Submitted");
+    } else{
+      console.log("Form Not Submitted");
+    }  
+  }
+
+  useEffect(() => {
+    axios.get('http://127.0.0.1:3001/config/update', {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then((res) => {
+        setTrainModels(res.data["Model List"]);
+      });
+  }, [])
+
   return (
-    <Page title="Pipeline | Minimal-UI">
+    <div>
+   {/* <Page title="Pipeline | Minimal-UI"> */}
       <Container maxWidth="xl">
         <Box sx={{ pb: 5 }}>
-          <Typography variant="h4">Configure your own pipeline right here!</Typography>
+          <Typography data-testid="pipeline-header" variant="h4">Configure your own pipeline and policies right here!</Typography>
         </Box>
         {/* <DndProvider backend={HTML5Backend}>
           <div>
             <DragDrop />
           </div>
         </DndProvider> */}
-        <div style={{height: "100vh", width: "76vw"}}>
+        <form onSubmit={trainModel}>
+
+        <div data-testid="component-border-pipeline" className="componentBorder">
+        <Box sx={{ pb: 5 }}>
+          <Typography variant="h4" style={{ textAlign: "center", paddingTop: "35px" }}>Pipeline Components</Typography>
+        </Box>
+        {/* <OutlinedDiv className="componentBorder" label="Pipline Components"> */}
             <div style={{height: "100vh", width: "17vw", float: "left"}}>
 
             {/* commented this out caus of radio button. implemented checkbox below */}
@@ -1206,9 +1710,9 @@ export default function DashboardApp() {
               </RadioGroup>
             </FormControl> */}
 
-              <FormControl
-              component="fieldset"
-              variant="standard"
+            <FormControl
+            component="fieldset"
+            variant="standard"
             >
               <FormLabel component="legend">Language Models</FormLabel>
               <FormGroup>
@@ -1240,8 +1744,9 @@ export default function DashboardApp() {
                 <FormControlLabel value="WhitespaceTokenizer" control={<Radio />} label="WhitespaceTokenizer" />
                 {/* commented this out so that user cannot choose this open. Uncomment if needed */}
                 {/* <FormControlLabel value="JiebaTokenizer" control={<Radio />} label="JiebaTokenizer" /> */}
-                <FormControlLabel value="MitieTokenizer" control={<Radio />} label="MitieTokenizer" />
+                {/* <FormControlLabel value="MitieTokenizer" control={<Radio />} label="MitieTokenizer" /> */}
                 <FormControlLabel value="SpacyTokenizer" control={<Radio />} label="SpacyTokenizer" />
+                {/* <FormControlLabel value="SEETMTokenizer" control={<Radio />} label="SEETMTokenizer" /> */}
               </RadioGroup>
             </FormControl>
             <br/><br/>
@@ -1254,12 +1759,12 @@ export default function DashboardApp() {
             >
               <FormLabel component="legend">Featurizers</FormLabel>
               <FormGroup>
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={mitieF} onChange={handleFeaturizerChange} name="mitieF" />
                   }
                   label="MitieFeaturizer"
-                />
+                /> */}
                 <FormControlLabel
                   control={
                     <Checkbox checked={spacyF} onChange={handleFeaturizerChange} name="spacyF" />
@@ -1297,6 +1802,12 @@ export default function DashboardApp() {
                   }
                   label="LexicalSyntacticFeaturizer"
                 />
+                {/* <FormControlLabel
+                  control={
+                    <Checkbox checked={gensimF} onChange={handleFeaturizerChange} name="gensimF" />
+                  }
+                  label="GensimFeaturizer"
+                /> */}
               </FormGroup>
               {/* <FormHelperText>Choose atleast one Featurizer</FormHelperText> */}
             </FormControl>
@@ -1311,24 +1822,24 @@ export default function DashboardApp() {
             >
               <FormLabel component="legend">Classifiers</FormLabel>
               <FormGroup>
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={mitieC} onChange={handleClassifierChange} name="mitieC" />
                   }
                   label="MitieIntentClassifier"
-                />
-                <FormControlLabel
+                /> */}
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={logisticC} onChange={handleClassifierChange} name="logisticC" />
                   }
                   label="LogisticRegressionClassifier"
-                />
-                <FormControlLabel
+                /> */}
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={skLearnC} onChange={handleClassifierChange} name="skLearnC" />
                   }
                   label="SklearnIntentClassifier"
-                />
+                /> */}
                 <FormControlLabel
                   control={
                     <Checkbox checked={keywordC} onChange={handleClassifierChange} name="keywordC" />
@@ -1361,12 +1872,12 @@ export default function DashboardApp() {
             >
               <FormLabel component="legend">Extractors</FormLabel>
               <FormGroup>
-                <FormControlLabel
+                {/* <FormControlLabel
                   control={
                     <Checkbox checked={mitieE} onChange={handleExtractorChange} name="mitieE" />
                   }
                   label="MitieEntityExtractor"
-                />
+                /> */}
                 <FormControlLabel
                   control={
                     <Checkbox checked={spacyE} onChange={handleExtractorChange} name="spacyE" />
@@ -1401,7 +1912,7 @@ export default function DashboardApp() {
               {/* <FormHelperText>Choose atleast one Extractor</FormHelperText> */}
             </FormControl>
             </div>
-            <div style={{height: "100vh", width: "59vw", float: "left"}}>
+            <div style={{height: "100vh", width: "56vw", float: "left"}}>
               {/* {languageModelValue === "MitieNLP" &&  */}
               {mitieLM &&
               <div className='PipelineComponent'>
@@ -1611,6 +2122,12 @@ export default function DashboardApp() {
                   <MenuItem value=" ">None</MenuItem>
                 </TextField>
               </div>}
+              {tokenizerValue === "SEETMTokenizer" && 
+              <div className='PipelineComponent'>
+                SEETMTokenizer
+                <br/><br/>
+                
+              </div>}
 
               {mitieF && 
               <div className='PipelineComponent'>
@@ -1741,6 +2258,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Number of Additional Patterns"
                   disabled={!regexFeaturizerHidePatternsTextField}
+                  error={regexFeaturizerNumOfPatternsError}
+                  helperText={regexFeaturizerNumOfPatternsError ? "Number of Additional Patterns should be a positive number" : null}
                 />
               </div>}
               {countVectorsF && 
@@ -1770,6 +2289,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Min N-gram"
                   className="TokenizerDropDowns"
+                  error={countVectorsFeaturizerMinNGramError}
+                  helperText={countVectorsFeaturizerMinNGramError ? "Min N-gram value should be a positive number" : null}
                 />
 
                 <TextField
@@ -1780,6 +2301,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Max N-gram"
                   className="TokenizerDropDowns"
+                  error={countVectorsFeaturizerMaxNGramError}
+                  helperText={countVectorsFeaturizerMaxNGramError ? "Max N-gram value should be a positive number" : null}
                 />
 
                 <br/><br/>
@@ -1818,6 +2341,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Additional Vocabulary Text Size"
                   className="TokenizerDropDowns"
+                  error={countVectorsFeaturizerTextSizeError}
+                  helperText={countVectorsFeaturizerTextSizeError ? "Additional Vocabulary Text Size value should be greater than 999" : null}
                 />
 
                 <TextField
@@ -1828,6 +2353,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Additional Vocabulary Response Text Size"
                   className="TokenizerDropDowns"
+                  error={countVectorsFeaturizerResponseSizeError}
+                  helperText={countVectorsFeaturizerResponseSizeError ? "Additional Vocabulary Response Text Size value should be greater than 999" : null}
                 />
 
                 <TextField
@@ -1838,6 +2365,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Additional Vocabulary Action Text Size"
                   className="TokenizerDropDowns"
+                  error={countVectorsFeaturizerActionTextSizeError}
+                  helperText={countVectorsFeaturizerActionTextSizeError ? "Additional Vocabulary Action Text Size value should be greater than 999" : null}
                 />
               </div>}
               {lexicalSyntacticF && 
@@ -2143,6 +2672,39 @@ export default function DashboardApp() {
                   <FormHelperText>Choose atleast one After Token Feature</FormHelperText>
                 </FormControl>
               </div>}
+              {gensimF && 
+              <div className='PipelineComponent'>
+                GensimFeaturizer
+                <br/><br/>
+
+                <Checkbox checked={gensimFeaturizerHideCacheDir} onChange={handleGensimFeaturizerHideCacheDirChange} name="gensimFeaturizerHideCacheDir" />
+
+                <TextField
+                  value={gensimFeaturizerCacheDir}
+                  onChange={handleGensimFeaturizerCacheDirChange}
+                  variant="outlined"
+                  label="Cache Directory"
+                  className="TokenizerDropDowns"
+                  disabled={!gensimFeaturizerHideCacheDir}
+                  error={gensimFeaturizerCacheDirError}
+                  helperText={gensimFeaturizerCacheDirError ? "A proper path needs to be provided for Cache Directory" : null}
+                />
+
+                <br/><br/>
+
+                <Checkbox checked={gensimFeaturizerHideFile} onChange={handleGensimFeaturizerHideFileChange} name="gensimFeaturizerHideFile" />
+
+                <TextField
+                  value={gensimFeaturizerFile}
+                  onChange={handleGensimFeaturizerFileChange}
+                  variant="outlined"
+                  label="File"
+                  className="TokenizerDropDowns"
+                  disabled={!gensimFeaturizerHideFile}
+                  error={gensimFeaturizerFileError}
+                  helperText={gensimFeaturizerFileError ? "A proper File name needs to be provided" : null}
+                />
+              </div>}
 
               {mitieC && <div className='PipelineComponent'>MitieIntentClassifier</div>}
               {logisticC && 
@@ -2158,6 +2720,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Max Iterations"
                   className="TokenizerDropDowns"
+                  error={logisticRegressionClassifierMaxIterError}
+                  helperText={logisticRegressionClassifierMaxIterError ? "Max Iterations value should be a positive number" : null}
                 />
 
                 <br/><br/>
@@ -2180,12 +2744,14 @@ export default function DashboardApp() {
 
                 <TextField
                   type="number"
-                  inputProps={{ step: ".01" }}
+                  inputProps={{ step: ".0001" }}
                   value={logisticRegressionClassifierTol}
                   onChange={handleLogisticRegressionClassifierTolChange}
                   variant="outlined"
                   label="Tolerance"
                   className="TokenizerDropDowns"
+                  error={logisticRegressionClassifierTolError}
+                  helperText={logisticRegressionClassifierTolError ? "Tolerance value should be a number between 0 and 1" : null}
                 />
 
                 <br/><br/>
@@ -2201,6 +2767,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Random State"
                   disabled={!logisticRegressionClassifierHideTextField}
+                  error={logisticRegressionClassifierRandomStateError}
+                  helperText={logisticRegressionClassifierRandomStateError ? "Random State value should be a positive number" : null}
                 />
               </div>}
               {skLearnC && 
@@ -2216,6 +2784,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="First C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC1Error}
+                  helperText={sklearnIntentClassifierC1Error ? "C1 value should be a positive number" : null}
                 />
 
                 <TextField
@@ -2226,6 +2796,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Second C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC2Error}
+                  helperText={sklearnIntentClassifierC2Error ? "C2 value should be a positive number" : null}
                 />
 
                 <TextField
@@ -2236,6 +2808,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Third C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC3Error}
+                  helperText={sklearnIntentClassifierC3Error ? "C3 value should be a positive number" : null}
                 />
 
                 <TextField
@@ -2246,6 +2820,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Fourth C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC4Error}
+                  helperText={sklearnIntentClassifierC4Error ? "C4 value should be a positive number" : null}
                 />
 
                 <TextField
@@ -2256,6 +2832,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Fifth C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC5Error}
+                  helperText={sklearnIntentClassifierC5Error ? "C5 value should be a positive number" : null}
                 />
 
                 <TextField
@@ -2266,6 +2844,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Sixth C Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierC6Error}
+                  helperText={sklearnIntentClassifierC6Error ? "C6 value should be a positive number" : null}
                 />
 
                 <br/><br/>
@@ -2288,11 +2868,14 @@ export default function DashboardApp() {
 
                 <TextField
                   type="number"
+                  inputProps={{ step: ".1" }}
                   value={sklearnIntentClassifierGamma}
                   onChange={handleSklearnIntentClassifierGammaChange}
                   variant="outlined"
                   label="Gamma Value"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierGammaError}
+                  helperText={sklearnIntentClassifierGammaError ? "Gamma value should be a number between 0 and 1" : null}
                 />
 
                 <br/><br/>
@@ -2305,6 +2888,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Max Cross Validation Folds"
                   className="TokenizerDropDowns"
+                  error={sklearnIntentClassifierMaxFoldsError}
+                  helperText={sklearnIntentClassifierMaxFoldsError ? "Max Cross Validation Folds value should be a positive number" : null}
                 />
 
                 <br/><br/>
@@ -2366,6 +2951,8 @@ export default function DashboardApp() {
                   variant="outlined"
                   label="Epochs"
                   className="TokenizerDropDowns"
+                  error={DIETClassifierEpochsError}
+                  helperText={DIETClassifierEpochsError ? "Epochs value should be a positive number" : null}
                 />
 
                 <br/><br/>
@@ -2401,12 +2988,14 @@ export default function DashboardApp() {
 
                 <TextField
                   type="number"
-                  inputProps={{ fallbackClassifierMinThreshold, fallbackClassifierMaxThreshold, step: ".1" }}
+                  inputProps={{ step: ".1" }}
                   value={fallbackClassifierThreshold}
                   onChange={handleFallbackClassifierThresholdChange}
                   variant="outlined"
                   label="Threshold"
                   className="TokenizerDropDowns"
+                  error={fallbackClassifierThresholdError}
+                  helperText={fallbackClassifierThresholdError ? "Threshold value should be a number between 0 and 1" : null}
                 />
               </div>}
 
@@ -2969,21 +3558,284 @@ export default function DashboardApp() {
                 </TextField>
               </div>}
               {entityE && <div className='PipelineComponent'>EntitySynonymMapper</div>}
-
-              <Button 
-              variant="contained"
-              onClick={trainModel}
-              className="trainBtn"
-              >
-                Train Model
-              </Button>
             </div>
-          </div>
+          </div>  
+          {/* </OutlinedDiv> */}
           <div style={{clear: "both"}}/>
         {/* <Box style={{height: "1000px", width: "300px", backgroundColor: "red"}}> */}
         
         {/* </Box> */}
+        <div className="componentBorder componentBorderPolicies">
+        <Box sx={{ pb: 5 }}>
+          <Typography variant="h4" style={{ textAlign: "center", paddingTop: "35px" }}>Policies</Typography>
+        </Box>
+            <div style={{height: "100vh", width: "17vw", float: "left"}}>
+            <FormControl
+            component="fieldset"
+            variant="standard"
+            >
+              <FormLabel component="legend">Policies</FormLabel>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={tedP} onChange={handlePolicyChange} name="tedP" value="TEDPolicy" />
+                  }
+                  label="TEDPolicy"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={unexpectedP} onChange={handlePolicyChange} name="unexpectedP" value="UnexpecTEDIntentPolicy" />
+                  }
+                  label="UnexpecTEDIntentPolicy"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={memoizationP} onChange={handlePolicyChange} name="memoizationP" value="MemoizationPolicy" />
+                  }
+                  label="MemoizationPolicy"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={augmentedMP} onChange={handlePolicyChange} name="augmentedMP" value="AugmentedMemoizationPolicy" />
+                  }
+                  label="AugmentedMemoizationPolicy"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={ruleP} onChange={handlePolicyChange} name="ruleP" value="RulePolicy" />
+                  }
+                  label="RulePolicy"
+                />
+              </FormGroup>
+            </FormControl>
+            </div>
+            <div style={{height: "100vh", width: "56vw", float: "left"}}>
+              {tedP &&
+              <div className='PipelineComponent'>
+                TEDPolicy
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  value={TEDPolicyEpochs}
+                  onChange={handleTEDPolicyEpochsChange}
+                  variant="outlined"
+                  label="Epochs"
+                  className="TokenizerDropDowns"
+                  error={TEDPolicyEpochsError}
+                  helperText={TEDPolicyEpochsError ? "Epoch value should be a positive number" : null}
+                />
+
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  value={TEDPolicyMaxHistory}
+                  onChange={handleTEDPolicyMaxHistoryChange}
+                  variant="outlined"
+                  label="Max History"
+                  className="TokenizerDropDowns"
+                  error={TEDPolicyMaxHistoryError}
+                  helperText={TEDPolicyMaxHistoryError ? "Max History value should be a positive number" : null}
+                />
+
+                <br/><br/>
+                
+                <TextField
+                  value={TEDPolicySplitByComma}
+                  onChange={handleTEDPolicySplitByCommaChange}
+                  select // tell TextField to render select
+                  label="Split Entities By Comma"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={TEDPolicyConstrainSimilarities}
+                  onChange={handleTEDPolicyConstrainSimilaritiesChange}
+                  select // tell TextField to render select
+                  label="Constrain Similarities"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+              </div>}
+
+              {unexpectedP &&
+              <div className='PipelineComponent'>
+                UnexpecTEDIntentPolicy
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  value={unexpecTEDIntentPolicyEpochs}
+                  onChange={handleUnexpecTEDIntentPolicyEpochsChange}
+                  variant="outlined"
+                  label="Epochs"
+                  className="TokenizerDropDowns"
+                  error={unexpecTEDIntentPolicyEpochsError}
+                  helperText={unexpecTEDIntentPolicyEpochsError ? "Epoch value should be a positive number" : null}
+                />
+
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  value={unexpecTEDIntentPolicyMaxHistory}
+                  onChange={handleUnexpecTEDIntentPolicyMaxHistoryChange}
+                  variant="outlined"
+                  label="Max History"
+                  className="TokenizerDropDowns"
+                  error={unexpecTEDIntentPolicyMaxHistoryError}
+                  helperText={unexpecTEDIntentPolicyMaxHistoryError ? "Max History value should be a positive number" : null}
+                />
+                
+              </div>}
+
+              {memoizationP &&
+              <div className='PipelineComponent'>
+                MemoizationPolicy
+                <br/><br/>
+
+                <TextField
+                  type="number"
+                  value={memoizationPolicyMaxHistory}
+                  onChange={handleMemoizationPolicyMaxHistoryChange}
+                  variant="outlined"
+                  label="Max History"
+                  className="TokenizerDropDowns"
+                  error={memoizationPolicyMaxHistoryError}
+                  helperText={memoizationPolicyMaxHistoryError ? "Max History value should be a positive number" : null}
+                />                
+              </div>}
+
+              {augmentedMP &&
+              <div className='PipelineComponent'>
+                AugmentedMemoizationPolicy
+                <br/><br/>
+                
+                <TextField
+                  type="number"
+                  value={augmentedMemoizationPolicyMaxHistory}
+                  onChange={handleAugmentedMemoizationPolicyMaxHistoryChange}
+                  variant="outlined"
+                  label="Max History"
+                  className="TokenizerDropDowns"
+                  error={augmentedMemoizationPolicyMaxHistoryError}
+                  helperText={augmentedMemoizationPolicyMaxHistoryError ? "Max History value should be a positive number" : null}
+                />
+              </div>}
+
+              {ruleP &&
+              <div className='PipelineComponent'>
+                RulePolicy
+                <br/><br/>
+                
+                <TextField
+                  type="number"
+                  inputProps={{ step: ".1" }}
+                  value={rulePolicyThreshold}
+                  onChange={handleRulePolicyThresholdChange}
+                  variant="outlined"
+                  label="Core Fallback Threshold"
+                  className="TokenizerDropDowns"
+                  error={rulePolicyThresholdError}
+                  helperText={rulePolicyThresholdError ? "Threshold value should be a value between 0.1 and 1.0" : null}
+                />
+
+                <br/><br/>
+                
+                <TextField
+                  value={rulePolicyEnablePrediction}
+                  onChange={handleRulePolicyEnablePredictionChange}
+                  select // tell TextField to render select
+                  label="Enable Fallback Prediction"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={rulePolicyRestrictRules}
+                  onChange={handleRulePolicyRestrictRulesChange}
+                  select // tell TextField to render select
+                  label="Restrict Rules"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+
+                <br/><br/>
+                
+                <TextField
+                  value={rulePolicyCheckContradictions}
+                  onChange={handleRulePolicyCheckContradictionsChange}
+                  select // tell TextField to render select
+                  label="Check for Contradictions"
+                  className="TokenizerDropDowns"
+                >
+                  <MenuItem value>True</MenuItem>
+                  <MenuItem value={false}>False</MenuItem>
+                </TextField>
+              </div>}
+
+            </div>
+          </div> 
+          <div style={{clear: "both"}}/>
+          <div style={{ float: "right", height: "20vh", width: "12vw", paddingTop: "1vh" }}>
+            { loading ? <CircularProgress style={{ float: "right" }} /> 
+            : 
+            <Button
+            variant="contained"
+            onClick={trainModel}
+            className="trainBtn"
+            >
+              Train Model
+            </Button>  
+            }
+          </div>
+          </form>
+          <Snackbar open={openTraingModelSuccessAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="success" sx={{ width: '100%' }}>
+              Model was trained successfully!!
+            </Alert>
+          </Snackbar>
+          <Snackbar open={openTraingModelFailAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
+              ERROR: Was unable to train model
+            </Alert>
+          </Snackbar>
+          <Snackbar open={openSpacyTokenizerAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
+              Using SpacyTokenizer requires SpacyNLP
+            </Alert>
+          </Snackbar>
+          <Snackbar open={openSpacyFeaturizerAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
+              Using SpacyFeaturizer requires SpacyNLP
+            </Alert>
+          </Snackbar>
+          <Snackbar open={openSpacyEntityExtractorAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
+              Using SpacyEntityExtractor requires SpacyNLP
+            </Alert>
+          </Snackbar>
+          <Snackbar open={openSpacyFeaturizerTokenizerAlert} autoHideDuration={6000} onClose={handleClose}>
+            <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
+              Using SpacyFeaturizer requires SpacyTokenizer
+            </Alert>
+          </Snackbar>
       </Container>
-    </Page>
+    {/* </Page> */}
+    </div>
   );
 }
