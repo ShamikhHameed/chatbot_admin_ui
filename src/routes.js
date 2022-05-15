@@ -12,7 +12,8 @@ import User from './pages/User';
 import NotFound from './pages/Page404';
 
 import ChatBot from './pages/Chatbot';
-import Pipeline from './pages/Pipeline';
+import Configuration from './pages/Pipeline';
+import Model from './pages/Model';
 
 // ----------------------------------------------------------------------
 
@@ -22,14 +23,16 @@ export default function Router() {
       path: '/dashboard',
       element: <DashboardLayout />,
       children: [
-        { element: <Navigate to="/dashboard/app" replace /> },
+        // { element: <Navigate to="/dashboard/app" replace /> },
+        { element: <Navigate to="/dashboard/configuration" replace /> },
         { path: 'app', element: <DashboardApp /> },
         { path: 'user', element: <User /> },
         { path: 'products', element: <Products /> },
         { path: 'blog', element: <Blog /> },
 
         { path: 'chatbot', element: <ChatBot /> },
-        { path: 'pipeline', element: <Pipeline /> }
+        { path: 'configuration', element: <Configuration /> },
+        { path: 'model', element: <Model /> }
       ]
     },
     {

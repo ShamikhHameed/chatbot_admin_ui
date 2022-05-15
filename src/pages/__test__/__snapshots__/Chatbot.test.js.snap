@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`matches snapshot 1`] = `
+<div>
+  <div
+    className="MuiContainer-root MuiContainer-maxWidthXl css-19r6kue-MuiContainer-root"
+  >
+    <div
+      className="MuiBox-root css-m31y3a"
+    >
+      <h4
+        className="MuiTypography-root MuiTypography-h4 css-5lbw0b-MuiTypography-root"
+        data-testid="chatbot-header"
+      >
+        Hi, You can start chatting here!
+      </h4>
+    </div>
+  </div>
+</div>
+`;
