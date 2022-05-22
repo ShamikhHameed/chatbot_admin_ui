@@ -34,6 +34,10 @@ import {
   AppConversionRates
 } from '../components/_dashboard/app';
 
+import { properties } from '../properties'
+
+const API_URL_BASE = properties.apiUrl;
+
 // ----------------------------------------------------------------------
 
 export default function DashboardApp() {
@@ -73,17 +77,15 @@ export default function DashboardApp() {
     };
 
     const getModels = () => {
-      axios.get('http://127.0.0.1:3001/config/update', {
+      axios.get(`${API_URL_BASE}/config/update`, {
           headers: {
             'Content-Type': 'application/json'
           }
         }).then((res) => {
           setTrainedModels(res.data["Model List"]);
-          console.log("Model List");
-          console.log(res);
         });
 
-      axios.get('http://127.0.0.1:3001/model/latest', {
+      axios.get(`${API_URL_BASE}/model/latest`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -97,7 +99,7 @@ export default function DashboardApp() {
 
       handleCloseDeleteModel();
       
-      axios.delete(`http://127.0.0.1:3001/model/${name}`, {
+      axios.delete(`${API_URL_BASE}/model/${name}`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -118,7 +120,7 @@ export default function DashboardApp() {
 
       console.log(name);
       
-      axios.get(`http://127.0.0.1:3001/download/${name}`, {
+      axios.get(`${API_URL_BASE}/download/${name}`, {
         responseType: 'blob'
       }).then((res) => {
         const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -147,28 +149,26 @@ export default function DashboardApp() {
                       <Typography style={{ paddingTop: "10px" }} variant="h5" component="div" display="inline">
                           {latestModel === val ? <CircleIcon sx={{ color: green[500] }} /> : <CircleIcon sx={{ color: red[500] }} />}
                       </Typography>
-                      <Typography style={{ paddingTop: "10px" }} variant="h5" component="div" display="inline" align="center">
+                      <Typography style={{ paddingTop: "10px" }} variant="h5" component="div" display="inline" align="left">
                           {val}
                       </Typography>
-                      <Button
-                      variant="contained"
-                      onClick={ e => { downloadModel(e, val) } }
-                      className="trainBtn"
-                      display="inline" 
-                      align="right"
-                      >
-                        Download Model
-                      </Button>
-                      <Button
-                      variant="contained"
-                      onClick={ () => { handleClickOpenDeleteModel(); setselectedModelDelete(val); } }
-                      className="trainBtn"
-                      display="inline" 
-                      align="right"
-                      color="error"
-                      >
-                        Delete Model
-                      </Button>
+                      <div style={{ display:"inline", align:"right" }}>
+                        <Button
+                          variant="contained"
+                          onClick={ () => { handleClickOpenDeleteModel(); setselectedModelDelete(val); } }
+                          className="trainBtn"
+                          color="error"
+                          >
+                            Delete Model
+                        </Button>
+                        <Button
+                        variant="contained"
+                        onClick={ e => { downloadModel(e, val) } }
+                        className="trainBtn"
+                        >
+                          Download Model
+                        </Button>
+                      </div>
                   </CardContent>
             </Card>
           ))}

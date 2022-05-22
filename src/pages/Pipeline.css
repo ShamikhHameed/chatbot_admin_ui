@@ -12,6 +12,12 @@
 
 .componentBorderPolicies {
     margin: 20px -10px 0px -10px;
+    /* min-height: 18vh; */
+    padding: 15px 10px 5px 10px;
+    border-radius: 15px;
+    overflow:auto;
+    width: 76vw;
+    border: 2px solid #d7d7d7;
 }
 
 .PipelineComponent {
