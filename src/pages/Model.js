@@ -94,7 +94,7 @@ export default function DashboardApp() {
       });
     }
 
-    const deleteModel = (e, name) => { 
+    const deleteModel = (e, name) => {
       e.preventDefault();
 
       handleCloseDeleteModel();
@@ -207,7 +207,7 @@ export default function DashboardApp() {
       </Dialog>
       <Snackbar open={openDeleteModelFailAlert} autoHideDuration={6000} onClose={handleClose}>
         <Alert onClose={handleClose} severity="error" sx={{ width: '100%' }}>
-          ERROR: Was unable to download model
+          ERROR: Was unable to delete model
         </Alert>
       </Snackbar>
   {/* </Page> */}
