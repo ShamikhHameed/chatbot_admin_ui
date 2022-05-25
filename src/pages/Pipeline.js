@@ -48,6 +48,9 @@ import {
 } from '../components/_dashboard/app';
 
 import './Pipeline.css'
+import { properties } from '../properties'
+
+const API_URL_BASE = properties.apiUrl;
 
 // const fs = require('fs');
 // const YAML = require('json-to-pretty-yaml');
@@ -1637,7 +1640,7 @@ export default function DashboardApp() {
 
       setLoading(true);
   
-      axios.post('http://127.0.0.1:3001/config/update', combinedJSON, {
+      axios.post(`${API_URL_BASE}/config/update`, combinedJSON, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -1666,7 +1669,7 @@ export default function DashboardApp() {
   }
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:3001/config/update', {
+    axios.get(`${API_URL_BASE}/config/update`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -3565,11 +3568,11 @@ export default function DashboardApp() {
         {/* <Box style={{height: "1000px", width: "300px", backgroundColor: "red"}}> */}
         
         {/* </Box> */}
-        <div className="componentBorder componentBorderPolicies">
+        <div className="componentBorderPolicies">
         <Box sx={{ pb: 5 }}>
           <Typography variant="h4" style={{ textAlign: "center", paddingTop: "35px" }}>Policies</Typography>
         </Box>
-            <div style={{height: "100vh", width: "17vw", float: "left"}}>
+            <div style={{height: "65vh", width: "17vw", float: "left"}}>
             <FormControl
             component="fieldset"
             variant="standard"
@@ -3609,7 +3612,7 @@ export default function DashboardApp() {
               </FormGroup>
             </FormControl>
             </div>
-            <div style={{height: "100vh", width: "56vw", float: "left"}}>
+            <div style={{height: "65vh", width: "56vw", float: "left"}}>
               {tedP &&
               <div className='PipelineComponent'>
                 TEDPolicy
